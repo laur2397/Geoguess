@@ -50,7 +50,8 @@
       "mapsTitle": "Kartalar",
       "pleaseSelectLabel": "Joǵalǵanǵa uqsaysiz, túrin saylań yamasa múmkin ",
       "barrelRoll": "Joqarıǵa"
-    }
+    },
+    "worldClockBtn": "WORLD CLOCK"
   },
   "StreetView": {
     "nearby": {
@@ -218,5 +219,13 @@
   "AlertUpdate": {
     "label": "Jańa versiyası bar. Oǵan iye bolıw ushın túymeni basıń.",
     "btn": "Jańalaw"
+  },
+  "WorldClock": {
+    "title": "World clock & map",
+    "subtitle": "See the current time across major capitals with an interactive map overlay.",
+    "updatedInRealTime": "Times refresh every second to stay accurate.",
+    "mapCaption": "Hover each pin to see the local time and city name.",
+    "listTitle": "Major capitals",
+    "timezoneLabel": "Timezone"
   }
 }
