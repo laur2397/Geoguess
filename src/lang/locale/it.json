@@ -50,7 +50,8 @@
       "mapsTitle": "Mappe",
       "pleaseSelectLabel": "Sembri perso, per favore seleziona un tipo oppure ",
       "barrelRoll": "fai una capriola"
-    }
+    },
+    "worldClockBtn": "WORLD CLOCK"
   },
   "StreetView": {
     "nearby": {
@@ -218,5 +219,13 @@
   "AlertUpdate": {
     "label": "È disponibile una nuova versione. Clicca sul pulsante per ottenerla.",
     "btn": "Aggiorna"
+  },
+  "WorldClock": {
+    "title": "World clock & map",
+    "subtitle": "See the current time across major capitals with an interactive map overlay.",
+    "updatedInRealTime": "Times refresh every second to stay accurate.",
+    "mapCaption": "Hover each pin to see the local time and city name.",
+    "listTitle": "Major capitals",
+    "timezoneLabel": "Timezone"
   }
 }

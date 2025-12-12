@@ -50,7 +50,8 @@
       "mapsTitle": "מפות",
       "pleaseSelectLabel": "נדמה שאיבדת את הדרך, אנא בחר סוג או שתוכל ",
       "barrelRoll": "do a barrel roll"
-    }
+    },
+    "worldClockBtn": "WORLD CLOCK"
   },
   "StreetView": {
     "nearby": {
@@ -218,5 +219,13 @@
   "AlertUpdate": {
     "label": "גרסה חדשה מהניילונים זמינה. לחצו כאן כדי לקבל אותה.",
     "btn": "עדכון"
+  },
+  "WorldClock": {
+    "title": "World clock & map",
+    "subtitle": "See the current time across major capitals with an interactive map overlay.",
+    "updatedInRealTime": "Times refresh every second to stay accurate.",
+    "mapCaption": "Hover each pin to see the local time and city name.",
+    "listTitle": "Major capitals",
+    "timezoneLabel": "Timezone"
   }
 }

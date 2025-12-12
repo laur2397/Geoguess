@@ -50,7 +50,8 @@
       "mapsTitle": "Maps",
       "pleaseSelectLabel": "失われたようです。タイプを選択するか、可能です。 ",
       "barrelRoll": "バレルロールを使って"
-    }
+    },
+    "worldClockBtn": "WORLD CLOCK"
   },
   "StreetView": {
     "nearby": {
@@ -218,5 +219,13 @@
   "AlertUpdate": {
     "label": "新しいバージョンが利用可能です。ボタンをクリックして入手してください。",
     "btn": "更新"
+  },
+  "WorldClock": {
+    "title": "World clock & map",
+    "subtitle": "See the current time across major capitals with an interactive map overlay.",
+    "updatedInRealTime": "Times refresh every second to stay accurate.",
+    "mapCaption": "Hover each pin to see the local time and city name.",
+    "listTitle": "Major capitals",
+    "timezoneLabel": "Timezone"
   }
 }

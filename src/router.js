@@ -1,6 +1,7 @@
 import HistoryPage from '@/pages/HistoryPage';
 import Home from '@/pages/Home';
 import MedalsPage from '@/pages/MedalsPage';
+import WorldClockPage from '@/pages/WorldClockPage';
 import Vue from 'vue';
 import Router from 'vue-router';
 import { GAME_MODE } from './constants';
@@ -54,6 +55,11 @@ export default new Router({
             path: '/medals',
             name: 'Medals',
             component: MedalsPage,
+        },
+        {
+            path: '/world-clock',
+            name: 'WorldClock',
+            component: WorldClockPage,
         },
         {
             path: '/street-view/:modeSelected/:time',
