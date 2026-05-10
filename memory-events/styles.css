@@ -276,6 +276,11 @@ body.is-flashing #bg-canvas {
   display: grid;
   place-items: center;
   transition: opacity 0.6s var(--ease), visibility 0.6s var(--ease);
+  /* CSS-only failsafe: force-hide after 4s no matter what JS does */
+  animation: loaderFailsafe 0.6s 4s forwards;
+}
+@keyframes loaderFailsafe {
+  to { opacity: 0; visibility: hidden; }
 }
 .loader.is-done {
   opacity: 0;
