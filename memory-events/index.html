@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0014" />
+    <meta
+      name="description"
+      content="Memory Events – cabine foto premium pentru nunți, botezuri și evenimente corporate. Amintiri instant, distracție garantată."
+    />
+    <title>Memory Events · Cabine foto premium pentru evenimente memorabile</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="./styles.css" />
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <!-- Camera flash overlay -->
+    <div class="flash" id="flash"></div>
+
+    <!-- Polaroid printer (photos drop in periodically) -->
+    <div class="printer" id="printer" aria-hidden="true"></div>
+
+    <!-- Confetti / click sparkles layer -->
+    <canvas class="fx-canvas" id="fx-canvas"></canvas>
+
+    <!-- Custom cursor -->
+    <div class="cursor" id="cursor"></div>
+    <div class="cursor-trail" id="cursor-trail"></div>
+
+    <!-- Loader -->
+    <div class="loader" id="loader">
+      <div class="loader-inner">
+        <div class="loader-logo">
+          <span class="loader-m">M</span><span class="loader-e">E</span>
+        </div>
+        <div class="loader-bar"><div class="loader-bar-fill" id="loader-fill"></div></div>
+        <div class="loader-label">Pregătim amintirile…</div>
+      </div>
+    </div>
+
+    <!-- 3D canvas behind everything -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Animated noise overlay -->
+    <div class="grain"></div>
+
+    <!-- Navigation -->
+    <nav class="nav" id="nav">
+      <a class="nav-brand" href="#home">
+        <span class="nav-brand-mark">
+          <svg viewBox="0 0 40 40" aria-hidden="true">
+            <defs>
+              <linearGradient id="gradMark" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0" stop-color="#ff6ec7" />
+                <stop offset="1" stop-color="#7873f5" />
+              </linearGradient>
+            </defs>
+            <rect x="4" y="9" width="32" height="24" rx="4" fill="none" stroke="url(#gradMark)" stroke-width="2" />
+            <circle cx="20" cy="21" r="6" fill="none" stroke="url(#gradMark)" stroke-width="2" />
+            <circle cx="20" cy="21" r="2" fill="url(#gradMark)" />
+            <rect x="14" y="6" width="12" height="4" rx="1.5" fill="url(#gradMark)" />
+          </svg>
+        </span>
+        <span class="nav-brand-text">
+          <span>Memory</span><b>Events</b>
+        </span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#servicii">Servicii</a></li>
+        <li><a href="#cum">Cum funcționează</a></li>
+        <li><a href="#galerie">Galerie</a></li>
+        <li><a href="#pachete">Pachete</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+
+      <a href="#contact" class="nav-cta">
+        <span>Rezervă cabina</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+
+      <button class="nav-burger" id="nav-burger" aria-label="Meniu">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+
+    <!-- ============== HERO ============== -->
+    <section class="hero" id="home">
+      <div class="hero-content">
+        <div class="hero-eyebrow reveal">
+          <span class="dot"></span>
+          <span>Cabine foto premium · București & toată țara</span>
+        </div>
+
+        <h1 class="hero-title">
+          <span class="line reveal"><em>Amintiri</em> care</span>
+          <span class="line reveal">prind <span class="grad">viață</span></span>
+          <span class="line reveal">în <span class="grad-2">3, 2, 1…</span></span>
+        </h1>
+
+        <p class="hero-sub reveal">
+          Cabine foto cu design de butic, recuzită premium, printuri pe loc
+          și albume digitale partajabile. Transformăm fiecare eveniment
+          într-o galerie de zâmbete.
+        </p>
+
+        <div class="hero-cta reveal">
+          <a href="#pachete" class="btn btn-primary">
+            <span>Vezi pachetele</span>
+            <i></i>
+          </a>
+          <a href="#galerie" class="btn btn-ghost">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M10 8l6 4-6 4z" fill="currentColor"/></svg>
+            <span>Vezi galeria</span>
+          </a>
+        </div>
+
+        <div class="hero-meta reveal">
+          <div><b>500+</b><span>evenimente</span></div>
+          <div><b>120k</b><span>fotografii</span></div>
+          <div><b>4.9★</b><span>recenzii</span></div>
+        </div>
+      </div>
+
+      <!-- Floating polaroids (CSS+3D parallax) -->
+      <div class="polaroids" id="polaroids">
+        <div class="polaroid p1"><div class="p-img" style="--c1:#ffb3d1;--c2:#7c5cff"></div><span>Mihai &amp; Ana</span></div>
+        <div class="polaroid p2"><div class="p-img" style="--c1:#ffe27a;--c2:#ff6ec7"></div><span>Botez Sofia</span></div>
+        <div class="polaroid p3"><div class="p-img" style="--c1:#9af0ff;--c2:#7873f5"></div><span>Corporate Gala</span></div>
+        <div class="polaroid p4"><div class="p-img" style="--c1:#ffb37a;--c2:#ff3d77"></div><span>Aniversare 30</span></div>
+      </div>
+
+      <div class="hero-scroll">
+        <span>scroll</span>
+        <i></i>
+      </div>
+    </section>
+
+    <!-- Marquee -->
+    <div class="marquee">
+      <div class="marquee-track">
+        <span>Nunți</span><i>✦</i><span>Botezuri</span><i>✦</i><span>Corporate</span><i>✦</i>
+        <span>Aniversări</span><i>✦</i><span>Lansări de produs</span><i>✦</i><span>Mireasă &amp; Mire</span><i>✦</i>
+        <span>Petreceri private</span><i>✦</i><span>Gala</span><i>✦</i>
+        <span>Nunți</span><i>✦</i><span>Botezuri</span><i>✦</i><span>Corporate</span><i>✦</i>
+        <span>Aniversări</span><i>✦</i><span>Lansări de produs</span><i>✦</i><span>Mireasă &amp; Mire</span><i>✦</i>
+        <span>Petreceri private</span><i>✦</i><span>Gala</span><i>✦</i>
+      </div>
+    </div>
+
+    <!-- ============== SERVICII ============== -->
+    <section class="section servicii" id="servicii">
+      <header class="section-head">
+        <span class="section-tag reveal">01 · Servicii</span>
+        <h2 class="section-title reveal">Mai mult decât <em>o cabină foto</em>.<br/>O experiență.</h2>
+        <p class="section-sub reveal">Patru moduri prin care invitații tăi vor pleca acasă cu poze și o poveste.</p>
+      </header>
+
+      <div class="cards">
+        <article class="card reveal" data-tilt>
+          <div class="card-num">01</div>
+          <div class="card-icon">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect x="8" y="18" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>
+              <circle cx="32" cy="35" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+              <circle cx="32" cy="35" r="4" fill="currentColor"/>
+              <rect x="24" y="12" width="16" height="6" rx="2" fill="currentColor"/>
+            </svg>
+          </div>
+          <h3>Open-Air Booth</h3>
+          <p>Backdrop premium personalizat, ring light cinematic și un fotograf-cabinier mereu lângă invitați.</p>
+          <ul>
+            <li>Printuri 10×15 pe loc</li>
+            <li>Recuzită tematică</li>
+            <li>Logo &amp; mesaje custom</li>
+          </ul>
+        </article>
+
+        <article class="card reveal" data-tilt>
+          <div class="card-num">02</div>
+          <div class="card-icon">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="2"/>
+              <circle cx="32" cy="32" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M32 6v8M32 50v8M6 32h8M50 32h8" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <h3>360° Video Booth</h3>
+          <p>Platformă rotativă cu cameră slow-motion. Clipuri cinematice gata de Instagram în 30 de secunde.</p>
+          <ul>
+            <li>Slow-motion 4K</li>
+            <li>Muzică &amp; efecte</li>
+            <li>Share direct pe telefon</li>
+          </ul>
+        </article>
+
+        <article class="card reveal" data-tilt>
+          <div class="card-num">03</div>
+          <div class="card-icon">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M12 20l20-10 20 10v24L32 54 12 44z" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 20l20 10 20-10M32 30v24" stroke="currentColor" stroke-width="2" fill="none"/>
+            </svg>
+          </div>
+          <h3>Magic Mirror</h3>
+          <p>Oglindă interactivă cu animații, semnătură pe touch screen și complimente personalizate.</p>
+          <ul>
+            <li>Interfață animată</li>
+            <li>Semnătură digitală</li>
+            <li>Aspect couture</li>
+          </ul>
+        </article>
+
+        <article class="card reveal" data-tilt>
+          <div class="card-num">04</div>
+          <div class="card-icon">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <rect x="10" y="14" width="44" height="30" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M10 38l12-10 10 8 8-6 14 10" fill="none" stroke="currentColor" stroke-width="2"/>
+              <circle cx="22" cy="24" r="3" fill="currentColor"/>
+              <path d="M20 50h24" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <h3>Album Digital</h3>
+          <p>QR code pentru invitați – descarcă toate pozele evenimentului, oriunde, pentru totdeauna.</p>
+          <ul>
+            <li>Galerie partajabilă</li>
+            <li>Filtre brandate</li>
+            <li>Backup în cloud</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============== CUM FUNCȚIONEAZĂ ============== -->
+    <section class="section how" id="cum">
+      <header class="section-head">
+        <span class="section-tag reveal">02 · Procesul</span>
+        <h2 class="section-title reveal">De la <em>idee</em> la <span class="grad">amintire</span> în 4 pași.</h2>
+      </header>
+
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-num">01</div>
+          <h3>Conceptul</h3>
+          <p>Discutăm tema, culorile și vibe-ul evenimentului tău. Îți trimitem un moodboard în 48h.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">02</div>
+          <h3>Design custom</h3>
+          <p>Creăm backdrop-ul, ramele și template-urile printurilor în identitatea ta vizuală.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">03</div>
+          <h3>Ziua Z</h3>
+          <p>Venim cu o oră înainte, montăm, calibrăm și suntem prezenți tot evenimentul.</p>
+        </div>
+        <div class="step reveal">
+          <div class="step-num">04</div>
+          <h3>Albumul</h3>
+          <p>În 24h primești galeria digitală cu toate fotografiile editate și clipurile 360°.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== GALERIE ============== -->
+    <section class="section gallery" id="galerie">
+      <header class="section-head">
+        <span class="section-tag reveal">03 · Momente</span>
+        <h2 class="section-title reveal">Galeria <em>Memory</em>.</h2>
+        <p class="section-sub reveal">Câteva sclipiri din evenimentele pe care le-am imortalizat anul acesta.</p>
+      </header>
+
+      <div class="gallery-grid">
+        <figure class="g g-1 reveal" data-tilt><div class="g-frame" style="--g1:#ff6ec7;--g2:#7873f5"></div><figcaption>Nunta Mihai &amp; Ana</figcaption></figure>
+        <figure class="g g-2 reveal" data-tilt><div class="g-frame" style="--g1:#ffd86b;--g2:#fb7185"></div><figcaption>Botez Sofia</figcaption></figure>
+        <figure class="g g-3 reveal" data-tilt><div class="g-frame" style="--g1:#9af0ff;--g2:#7873f5"></div><figcaption>Gala Corporate · Tech</figcaption></figure>
+        <figure class="g g-4 reveal" data-tilt><div class="g-frame" style="--g1:#c4ff7a;--g2:#22d3ee"></div><figcaption>Lansare Brand</figcaption></figure>
+        <figure class="g g-5 reveal" data-tilt><div class="g-frame" style="--g1:#ffb37a;--g2:#ff3d77"></div><figcaption>Aniversare 30</figcaption></figure>
+        <figure class="g g-6 reveal" data-tilt><div class="g-frame" style="--g1:#a78bfa;--g2:#ec4899"></div><figcaption>Mireasă &amp; Mire</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- ============== PACHETE ============== -->
+    <section class="section pricing" id="pachete">
+      <header class="section-head">
+        <span class="section-tag reveal">04 · Pachete</span>
+        <h2 class="section-title reveal">Alege <em>pachetul</em> potrivit.</h2>
+        <p class="section-sub reveal">Toate pachetele includ instalarea, fotograful-cabinier și albumul digital.</p>
+      </header>
+
+      <div class="plans">
+        <article class="plan reveal" data-tilt>
+          <div class="plan-head">
+            <h3>Essential</h3>
+            <p>Pentru evenimente intime, până în 80 de invitați.</p>
+          </div>
+          <div class="plan-price"><b>1.490</b><span>lei</span></div>
+          <ul class="plan-list">
+            <li>Open-Air Booth · 4 ore</li>
+            <li>Printuri 10×15 nelimitate</li>
+            <li>Recuzită clasică</li>
+            <li>Galerie digitală</li>
+            <li>Backdrop standard</li>
+          </ul>
+          <a href="#contact" class="btn btn-ghost">Alege Essential</a>
+        </article>
+
+        <article class="plan featured reveal" data-tilt>
+          <div class="plan-badge">Cel mai ales</div>
+          <div class="plan-head">
+            <h3>Signature</h3>
+            <p>Pentru nunți și evenimente de până la 200 de invitați.</p>
+          </div>
+          <div class="plan-price"><b>2.690</b><span>lei</span></div>
+          <ul class="plan-list">
+            <li>Open-Air <i>+ Magic Mirror</i> · 6 ore</li>
+            <li>Printuri nelimitate &amp; album invitați</li>
+            <li>Recuzită premium personalizată</li>
+            <li>Template printuri custom (logo)</li>
+            <li>Backdrop florar sau LED</li>
+            <li>QR album digital partajabil</li>
+          </ul>
+          <a href="#contact" class="btn btn-primary"><span>Alege Signature</span><i></i></a>
+        </article>
+
+        <article class="plan reveal" data-tilt>
+          <div class="plan-head">
+            <h3>Couture</h3>
+            <p>Experiență fullstack pentru evenimente corporate &amp; gale.</p>
+          </div>
+          <div class="plan-price"><b>4.290</b><span>lei</span></div>
+          <ul class="plan-list">
+            <li>Open-Air + Mirror + 360° Booth</li>
+            <li>Durată nelimitată</li>
+            <li>Producție backdrop la comandă</li>
+            <li>Operator video pentru clipuri</li>
+            <li>Livrare în 24h galerie + reel</li>
+          </ul>
+          <a href="#contact" class="btn btn-ghost">Alege Couture</a>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============== TESTIMONIALE ============== -->
+    <section class="section testimonials">
+      <header class="section-head">
+        <span class="section-tag reveal">05 · Recenzii</span>
+        <h2 class="section-title reveal">Cuvinte de la <em>cei care au dansat</em> cu noi.</h2>
+      </header>
+
+      <div class="quotes">
+        <blockquote class="quote reveal">
+          <p>„Cea mai tare cabină foto pe care am avut-o la o nuntă. Invitații au stat la coadă toată seara!”</p>
+          <footer><b>Ana &amp; Mihai</b><span>Nuntă · Domeniul Manasia</span></footer>
+        </blockquote>
+        <blockquote class="quote reveal">
+          <p>„Profesioniști de la prima discuție. Backdrop-ul cu logo-ul nostru a fost spectaculos.”</p>
+          <footer><b>Andreea Pop</b><span>Marketing Lead · Lansare brand</span></footer>
+        </blockquote>
+        <blockquote class="quote reveal">
+          <p>„Galeria digitală a făcut diferența. Toți colegii au primit pozele a doua zi dimineața.”</p>
+          <footer><b>Vlad Ionescu</b><span>HR Director · Gala Tech</span></footer>
+        </blockquote>
+      </div>
+    </section>
+
+    <!-- ============== CONTACT ============== -->
+    <section class="section contact" id="contact">
+      <div class="contact-grid">
+        <div class="contact-left">
+          <span class="section-tag reveal">06 · Hai să vorbim</span>
+          <h2 class="section-title reveal">Spune-ne despre <em>evenimentul tău</em>.</h2>
+          <p class="section-sub reveal">
+            Răspundem în maxim 4 ore lucrătoare cu o ofertă personalizată
+            și disponibilitatea pentru data ta.
+          </p>
+
+          <ul class="contact-meta reveal">
+            <li><b>Telefon</b><a href="tel:+40700000000">+40 700 000 000</a></li>
+            <li><b>Email</b><a href="mailto:hello@memoryevents.ro">hello@memoryevents.ro</a></li>
+            <li><b>Studio</b><span>Str. Polonă 23, București</span></li>
+            <li><b>Program</b><span>Luni–Sâmbătă · 10:00–19:00</span></li>
+          </ul>
+        </div>
+
+        <form class="contact-form reveal" id="contact-form" novalidate>
+          <label>
+            <span>Numele tău</span>
+            <input type="text" name="name" required placeholder="Ana Popescu" />
+          </label>
+          <label>
+            <span>Email sau telefon</span>
+            <input type="text" name="contact" required placeholder="ana@email.ro" />
+          </label>
+          <label>
+            <span>Tipul evenimentului</span>
+            <select name="type">
+              <option>Nuntă</option>
+              <option>Botez</option>
+              <option>Corporate</option>
+              <option>Aniversare</option>
+              <option>Lansare produs</option>
+              <option>Altceva</option>
+            </select>
+          </label>
+          <label>
+            <span>Data evenimentului</span>
+            <input type="date" name="date" />
+          </label>
+          <label class="full">
+            <span>Spune-ne mai multe</span>
+            <textarea name="msg" rows="4" placeholder="Locație, număr de invitați, idei creative…"></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary full">
+            <span>Trimite cererea</span><i></i>
+          </button>
+          <p class="form-note" id="form-note"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- ============== FOOTER ============== -->
+    <footer class="footer">
+      <div class="footer-grid">
+        <div>
+          <a class="nav-brand" href="#home">
+            <span class="nav-brand-mark">
+              <svg viewBox="0 0 40 40" aria-hidden="true">
+                <rect x="4" y="9" width="32" height="24" rx="4" fill="none" stroke="url(#gradMark)" stroke-width="2" />
+                <circle cx="20" cy="21" r="6" fill="none" stroke="url(#gradMark)" stroke-width="2" />
+                <circle cx="20" cy="21" r="2" fill="url(#gradMark)" />
+                <rect x="14" y="6" width="12" height="4" rx="1.5" fill="url(#gradMark)" />
+              </svg>
+            </span>
+            <span class="nav-brand-text"><span>Memory</span><b>Events</b></span>
+          </a>
+          <p class="footer-tag">Amintiri instant. Distracție garantată.</p>
+        </div>
+
+        <div>
+          <h5>Studio</h5>
+          <p>Str. Polonă 23<br/>București · România</p>
+        </div>
+        <div>
+          <h5>Contact</h5>
+          <a href="tel:+40700000000">+40 700 000 000</a><br/>
+          <a href="mailto:hello@memoryevents.ro">hello@memoryevents.ro</a>
+        </div>
+        <div>
+          <h5>Social</h5>
+          <ul class="socials">
+            <li><a href="#" aria-label="Instagram">Instagram</a></li>
+            <li><a href="#" aria-label="TikTok">TikTok</a></li>
+            <li><a href="#" aria-label="Facebook">Facebook</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© <span id="year"></span> Memory Events · Toate drepturile rezervate.</span>
+        <span>Made with <b>♥</b> în București</span>
+      </div>
+    </footer>
+
+    <script type="module" src="./scene.js"></script>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
