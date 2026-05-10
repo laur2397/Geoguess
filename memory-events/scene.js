@@ -314,6 +314,14 @@ window.addEventListener(
   { passive: true }
 );
 
+/* ---------------- Flash reactor ---------------- */
+let flashEnergy = 0; // 0..1, decays each frame
+let shakeEnergy = 0;
+window.addEventListener("memory:flash", (e) => {
+  flashEnergy = 1;
+  shakeEnergy = e.detail && e.detail.heavy ? 1 : 0.6;
+});
+
 /* ---------------- Resize ---------------- */
 window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -357,13 +365,27 @@ function tick() {
 
   // Scroll: push camera slightly back
   const scrollNorm = scrollY / (document.body.scrollHeight - window.innerHeight || 1);
+  const shakeX = (Math.random() - 0.5) * shakeEnergy * 0.25;
+  const shakeY = (Math.random() - 0.5) * shakeEnergy * 0.25;
   camera.position.z = 9 + scrollNorm * 6;
-  camera.position.y = -scrollNorm * 2.5;
+  camera.position.y = -scrollNorm * 2.5 + shakeY;
+  camera.position.x = shakeX;
   camera.lookAt(0, -scrollNorm * 1.5, 0);
 
-  // Lights movement
+  // Lights movement + flash pulse
   keyLight.position.x = -6 + Math.sin(t * 0.4) * 1.5;
   fillLight.position.y = -3 + Math.cos(t * 0.3) * 1.5;
+  const flashPulse = flashEnergy * 8;
+  keyLight.intensity = 4 + flashPulse;
+  fillLight.intensity = 3.2 + flashPulse * 0.7;
+  rimLight.intensity = 2 + flashPulse * 0.5;
+  ringMat.emissiveIntensity = 0.45 + flashEnergy * 1.4;
+  glassMat.emissiveIntensity = 0.5 + flashEnergy * 1.1;
+  highlight.scale.setScalar(1 + flashEnergy * 1.5);
+
+  // decay
+  flashEnergy = Math.max(0, flashEnergy - 0.045);
+  shakeEnergy = Math.max(0, shakeEnergy - 0.06);
 
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
