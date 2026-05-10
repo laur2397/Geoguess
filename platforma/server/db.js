@@ -1,4 +1,4 @@
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
@@ -6,9 +6,42 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'platf
 const dbDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+const db = new DatabaseSync(DB_PATH);
+db.exec('PRAGMA journal_mode = WAL');
+db.exec('PRAGMA foreign_keys = ON');
+
+// Compatibility wrapper to match better-sqlite3 API surface used by routes
+const origPrepare = db.prepare.bind(db);
+db.prepare = function (sql) {
+  const stmt = origPrepare(sql);
+  const wrapped = {
+    run: (...args) => {
+      const info = stmt.run(...args);
+      return {
+        changes: Number(info.changes),
+        lastInsertRowid: typeof info.lastInsertRowid === 'bigint' ? Number(info.lastInsertRowid) : info.lastInsertRowid,
+      };
+    },
+    get: (...args) => stmt.get(...args),
+    all: (...args) => stmt.all(...args),
+    iterate: (...args) => stmt.iterate(...args),
+  };
+  return wrapped;
+};
+
+db.transaction = function (fn) {
+  return (...args) => {
+    db.exec('BEGIN');
+    try {
+      const result = fn(...args);
+      db.exec('COMMIT');
+      return result;
+    } catch (e) {
+      try { db.exec('ROLLBACK'); } catch (_) { /* noop */ }
+      throw e;
+    }
+  };
+};
 
 function init() {
   db.exec(`

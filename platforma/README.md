@@ -183,7 +183,7 @@ CORS_ORIGIN=https://platforma.scoalagrecesti.ro
 
 ## Performanță & scalabilitate
 
-- **SQLite WAL mode** — suportă mii de citiri simultane; potrivit pentru ~50-500 utilizatori
+- **SQLite WAL mode** via `node:sqlite` (built-in, fără compilare nativă) — suportă mii de citiri simultane; potrivit pentru ~50-500 utilizatori
 - **Index-uri**: pe `subject_id`, `class_name`, `student_id`, `homework_id`
 - **Vite build** cu code-splitting per rută — bundle inițial < 50 kB gzip
 - **Range Requests** pentru streaming video fără a încărca tot fișierul
@@ -210,7 +210,7 @@ CORS_ORIGIN=https://platforma.scoalagrecesti.ro
 
 **Frontend**: Vue 3, Vue Router, Pinia, Vite — modern, reactiv, fără dependențe enterprise.
 
-**Backend**: Node.js 18+, Express 4, better-sqlite3, JSON Web Tokens, bcryptjs, multer, helmet, express-rate-limit.
+**Backend**: Node.js 22.5+ (folosește modulul built-in `node:sqlite` — fără compilare nativă), Express 4, JSON Web Tokens, bcryptjs, multer, helmet, express-rate-limit.
 
 **Bază de date**: SQLite (WAL) — zero-config, fișier portabil; poate fi migrată la PostgreSQL/MySQL fără modificarea schemei aplicației.
 

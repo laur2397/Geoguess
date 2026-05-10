@@ -4,17 +4,15 @@
   "description": "Platformă de centralizare a resurselor cadrelor didactice - Școala Gimnazială Greceşti",
   "private": true,
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "nodemon server/index.js",
+    "start": "node --no-warnings=ExperimentalWarning server/index.js",
+    "dev": "nodemon --exec \"node --no-warnings=ExperimentalWarning\" server/index.js",
     "build:client": "cd client && npm run build",
     "install:all": "npm install && cd client && npm install",
     "dev:client": "cd client && npm run dev",
-    "init:db": "node server/scripts/init-db.js",
-    "seed": "node server/scripts/seed.js"
+    "seed": "node --no-warnings=ExperimentalWarning server/scripts/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
@@ -27,6 +25,6 @@
     "nodemon": "^3.1.4"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.5"
   }
 }
