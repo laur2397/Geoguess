@@ -151,7 +151,9 @@ function initScene() {
       })
     );
     haloSprite.position.copy(pos);
-    haloSprite.scale.setScalar(p.primary ? 0.7 : 0.5);
+    const haloBase = p.primary ? 0.7 : 0.5;
+    haloSprite.scale.setScalar(haloBase);
+    haloSprite.userData.base = haloBase;
     globe.add(haloSprite);
     markers.push({ mesh: dot, halo: haloSprite, phase: Math.random() * Math.PI * 2 });
   }
@@ -259,9 +261,30 @@ function initScene() {
   window.addEventListener("resize", onResize);
   onResize();
 
+  // ------- Visibility & context-loss handling ----------------------------
+  let running = true;
+  document.addEventListener("visibilitychange", () => {
+    running = !document.hidden;
+    if (running) {
+      // Avoid huge dt spikes after long invisible periods
+      clock.getDelta();
+      tick();
+    }
+  });
+  canvas.addEventListener("webglcontextlost", (e) => {
+    e.preventDefault();
+    running = false;
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    running = true;
+    clock.getDelta();
+    tick();
+  });
+
   // ------- Animate -------------------------------------------------------
   const clock = new THREE.Clock();
   function tick() {
+    if (!running) return;
     const t = clock.getElapsedTime();
     const dt = clock.getDelta() || 0.016;
 
@@ -283,7 +306,7 @@ function initScene() {
     // Marker halo pulse
     for (const m of markers) {
       const s = 1 + Math.sin(t * 1.8 + m.phase) * 0.25;
-      m.halo.scale.setScalar((m.halo.userData?.base || 0.6) * s);
+      m.halo.scale.setScalar(m.halo.userData.base * s);
     }
 
     // Pulse along arc

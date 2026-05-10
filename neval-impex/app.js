@@ -36,15 +36,77 @@ if (window.gsap && window.ScrollTrigger) {
 }
 
 // ----------------------------------------------------------------------------
-// Nav stuck state
+// Nav stuck state + back-to-top
 // ----------------------------------------------------------------------------
 const nav = document.getElementById("nav");
+const toTop = document.getElementById("to-top");
+toTop?.removeAttribute("hidden");
 const onScroll = () => {
-  if (window.scrollY > 24) nav.classList.add("is-stuck");
+  const y = window.scrollY;
+  if (y > 24) nav.classList.add("is-stuck");
   else nav.classList.remove("is-stuck");
+  if (toTop) {
+    if (y > 600) toTop.classList.add("is-visible");
+    else toTop.classList.remove("is-visible");
+  }
 };
 onScroll();
 window.addEventListener("scroll", onScroll, { passive: true });
+
+toTop?.addEventListener("click", () => {
+  if (lenis) lenis.scrollTo(0, { duration: 1.2 });
+  else window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+// ----------------------------------------------------------------------------
+// Mobile menu toggle
+// ----------------------------------------------------------------------------
+const menuBtn = document.getElementById("menu-btn");
+const navLinks = document.getElementById("nav-links");
+function closeMenu() {
+  menuBtn?.setAttribute("aria-expanded", "false");
+  navLinks?.classList.remove("is-open");
+  document.body.style.overflow = "";
+}
+function openMenu() {
+  menuBtn?.setAttribute("aria-expanded", "true");
+  navLinks?.classList.add("is-open");
+  document.body.style.overflow = "hidden";
+}
+menuBtn?.addEventListener("click", () => {
+  const open = menuBtn.getAttribute("aria-expanded") === "true";
+  if (open) closeMenu(); else openMenu();
+});
+navLinks?.querySelectorAll("a").forEach((a) => a.addEventListener("click", closeMenu));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeMenu();
+});
+
+// ----------------------------------------------------------------------------
+// Scrollspy — highlight active section in nav
+// ----------------------------------------------------------------------------
+const navLinkMap = new Map();
+document.querySelectorAll(".nav-links a[href^='#']").forEach((a) => {
+  const id = a.getAttribute("href").slice(1);
+  if (id) navLinkMap.set(id, a);
+});
+const spyObserver = new IntersectionObserver(
+  (entries) => {
+    for (const e of entries) {
+      const link = navLinkMap.get(e.target.id);
+      if (!link) continue;
+      if (e.isIntersecting) {
+        navLinkMap.forEach((l) => l.classList.remove("is-active"));
+        link.classList.add("is-active");
+      }
+    }
+  },
+  { rootMargin: "-40% 0px -55% 0px", threshold: 0 }
+);
+navLinkMap.forEach((_, id) => {
+  const sec = document.getElementById(id);
+  if (sec) spyObserver.observe(sec);
+});
 
 // ----------------------------------------------------------------------------
 // Reveals (IntersectionObserver — works even without gsap)
@@ -66,6 +128,21 @@ document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
 // Stat counters
 // ----------------------------------------------------------------------------
 const counters = document.querySelectorAll("[data-count]");
+const fmtCount = (target, v) =>
+  Number.isInteger(target) ? Math.round(v).toString() : v.toFixed(1);
+
+// If a counter is offscreen at load, reset it to zero so the animation has
+// somewhere to count up from. If already in view, leave the final value
+// shown so the user doesn't see a jarring flicker.
+counters.forEach((el) => {
+  const target = parseFloat(el.dataset.count);
+  const suffix = el.dataset.suffix || "";
+  const r = el.getBoundingClientRect();
+  const inView = r.top < window.innerHeight && r.bottom > 0;
+  if (!inView) el.textContent = fmtCount(target, 0) + suffix;
+  el.dataset.final = fmtCount(target, target) + suffix;
+});
+
 const countObserver = new IntersectionObserver(
   (entries) => {
     for (const e of entries) {
@@ -73,21 +150,20 @@ const countObserver = new IntersectionObserver(
       const el = e.target;
       const target = parseFloat(el.dataset.count);
       const suffix = el.dataset.suffix || "";
+      const finalText = el.dataset.final;
+      // If already showing final value, skip the count-up.
+      if (el.textContent === finalText) {
+        countObserver.unobserve(el);
+        continue;
+      }
       const duration = 1600;
       const start = performance.now();
-      const fmt = (v) => {
-        if (target >= 1000 && target < 9999 && Number.isInteger(target)) {
-          return Math.round(v).toString();
-        }
-        if (Number.isInteger(target)) return Math.round(v).toString();
-        return v.toFixed(1);
-      };
       function step(now) {
         const t = Math.min(1, (now - start) / duration);
         const eased = 1 - Math.pow(1 - t, 3);
-        el.textContent = fmt(target * eased) + suffix;
+        el.textContent = fmtCount(target, target * eased) + suffix;
         if (t < 1) requestAnimationFrame(step);
-        else el.textContent = fmt(target) + suffix;
+        else el.textContent = finalText;
       }
       requestAnimationFrame(step);
       countObserver.unobserve(el);
@@ -540,7 +616,7 @@ function applyLang(lang) {
 }
 
 const stored = (() => { try { return localStorage.getItem("neval.lang"); } catch (e) { return null; } })();
-const initialLang = stored || (navigator.language?.startsWith("ro") ? "ro" : "ro");
+const initialLang = stored || (navigator.language?.toLowerCase().startsWith("ro") ? "ro" : "en");
 applyLang(initialLang);
 
 document.getElementById("lang-toggle").addEventListener("click", () => {
