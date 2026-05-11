@@ -580,16 +580,18 @@ function initCinematic() {
       // pull-back at the very end.
       const camAngle =
         -0.35 + 0.95 * Math.sin(p * Math.PI * 0.85);
-      // Distance from truck — closer in the middle, wider at start and end.
+      // Distance from truck — the truck is ~12m long, so we want to be
+      // ≥18m back to frame it whole plus context. Slightly closer at the
+      // middle of the journey, wider at start and end.
       const camDist =
         p < 0.86
-          ? 11 - 3 * Math.sin(p * Math.PI)          // 11 -> ~8 -> 11
-          : 11 + (p - 0.86) / 0.14 * 16;            // pull back to ~27
+          ? 19 - 4 * Math.sin(p * Math.PI)         // 19 -> ~15 -> 19
+          : 19 + (p - 0.86) / 0.14 * 16;           // pull back to ~35
       // Height — rises gradually so the city skyline stays visible.
       const camH =
         p < 0.86
-          ? 4 + 1.5 * Math.sin(p * Math.PI)
-          : 5.5 + (p - 0.86) / 0.14 * 6;
+          ? 6 + 2 * Math.sin(p * Math.PI)          // 6 -> ~8 -> 6
+          : 8 + (p - 0.86) / 0.14 * 6;             // up to ~14
 
       // Position the camera in truck-local orbital coordinates. The truck
       // faces +Z (it's driving toward larger Z values). "Behind" means
@@ -601,10 +603,11 @@ function initCinematic() {
       );
 
       // Look at a point a little ahead of the truck so the road and the
-      // base read clearly. At the very end, drift the look-at point
-      // slightly so the brand reveal centres cleanly.
-      const lookAhead = p < 0.86 ? 6 : 6 + (p - 0.86) / 0.14 * 4;
-      const lookY = 2.6 + (p < 0.86 ? 0 : (p - 0.86) / 0.14 * 1.4);
+      // base read clearly. With the wider zoom-out distance, the look-at
+      // point can sit slightly further forward so the framing balances
+      // truck + scene.
+      const lookAhead = p < 0.86 ? 4 : 4 + (p - 0.86) / 0.14 * 6;
+      const lookY = 2.0 + (p < 0.86 ? 0 : (p - 0.86) / 0.14 * 2.0);
       camera.lookAt(tp.x, lookY, tp.z + lookAhead);
 
       // ----- Shield --------------------------------------------------------
