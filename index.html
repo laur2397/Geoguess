@@ -28,8 +28,30 @@
   <body>
     <a class="skip-link" href="#reveal">Skip to content</a>
 
-    <!-- Fixed background canvas — always visible, regardless of scroll position -->
+    <!-- Fixed background canvas — 3D Three.js scene (truck/base/radar/explosion) -->
     <canvas id="cinematic-canvas" aria-hidden="true"></canvas>
+
+    <!-- Hero video — plays once on load, fades out when ended or on scroll.
+         Drop a real MP4 at assets/hero.mp4 (8-12s, 1080p+, H.264, muted).
+         If the file is missing the element auto-hides and the 3D scene shows. -->
+    <video
+      id="hero-video"
+      class="hero-video"
+      autoplay
+      muted
+      playsinline
+      preload="auto"
+      poster="assets/hero-poster.svg"
+      aria-hidden="true"
+    >
+      <source src="assets/hero.mp4" type="video/mp4" />
+    </video>
+
+    <!-- Skip-video button (top-right of video) — gives user control -->
+    <button class="video-skip" id="video-skip" type="button" aria-label="Skip intro video">
+      <span data-i18n="video.skip">Sari peste intro</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l10 8-10 8V4zM18 5v14" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
 
     <!-- Top nav (fixed, over everything) -->
     <header class="nav" id="nav">
