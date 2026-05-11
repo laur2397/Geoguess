@@ -14,6 +14,7 @@
         <router-link to="/" exact-active-class="active">Acasă</router-link>
         <router-link to="/resurse" active-class="active">Resurse</router-link>
         <router-link to="/teme" active-class="active">Teme</router-link>
+        <router-link to="/catalog" active-class="active">{{ auth.isStudent ? 'Carnet' : 'Catalog' }}</router-link>
         <router-link to="/progres" active-class="active">Progres</router-link>
         <router-link v-if="auth.isAdmin" to="/utilizatori" active-class="active">Utilizatori</router-link>
         <router-link to="/setari" active-class="active">Setări</router-link>

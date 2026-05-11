@@ -79,6 +79,19 @@ export const api = {
   getSettings: () => request('/settings'),
   updateSettings: (data) => request('/settings', { method: 'PUT', body: data }),
   getActivity: () => request('/settings/activity'),
+
+  // catalog (note + absente)
+  getYear: () => request('/catalog/year'),
+  listGrades: (params = {}) => request('/catalog/grades?' + new URLSearchParams(params)),
+  createGrade: (data) => request('/catalog/grades', { method: 'POST', body: data }),
+  updateGrade: (id, data) => request(`/catalog/grades/${id}`, { method: 'PUT', body: data }),
+  deleteGrade: (id) => request(`/catalog/grades/${id}`, { method: 'DELETE' }),
+  listAbsences: (params = {}) => request('/catalog/absences?' + new URLSearchParams(params)),
+  createAbsence: (data) => request('/catalog/absences', { method: 'POST', body: data }),
+  updateAbsence: (id, data) => request(`/catalog/absences/${id}`, { method: 'PUT', body: data }),
+  deleteAbsence: (id) => request(`/catalog/absences/${id}`, { method: 'DELETE' }),
+  myCarnet: (params = {}) => request('/catalog/carnet?' + new URLSearchParams(params)),
+  classCatalog: (className, params = {}) => request(`/catalog/class/${encodeURIComponent(className)}?` + new URLSearchParams(params)),
 };
 
 export function authHeaderForUrl(url) {

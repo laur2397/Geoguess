@@ -9,6 +9,7 @@ const routes = [
   { path: '/resurse/:id', name: 'resource', component: () => import('./views/ResourceDetail.vue') },
   { path: '/teme', name: 'homework', component: () => import('./views/Homework.vue') },
   { path: '/teme/:id', name: 'homework-detail', component: () => import('./views/HomeworkDetail.vue') },
+  { path: '/catalog', name: 'catalog', component: () => import('./views/Catalog.vue') },
   { path: '/progres', name: 'progress', component: () => import('./views/Progress.vue') },
   { path: '/utilizatori', name: 'users', component: () => import('./views/Users.vue'), meta: { roles: ['admin'] } },
   { path: '/setari', name: 'settings', component: () => import('./views/Settings.vue') },

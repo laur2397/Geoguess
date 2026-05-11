@@ -68,6 +68,13 @@
           <p class="muted small">{{ auth.isStudent ? 'Vezi temele și predă' : 'Creează și evaluează teme' }}</p>
         </div>
       </router-link>
+      <router-link to="/catalog" class="card action">
+        <div class="action-icon">📒</div>
+        <div>
+          <h3>{{ auth.isStudent ? 'Carnet de note' : 'Catalog electronic' }}</h3>
+          <p class="muted small">{{ auth.isStudent ? 'Notele tale pe materii și absențe' : 'Note pe materii, medii, absențe' }}</p>
+        </div>
+      </router-link>
       <router-link to="/progres" class="card action">
         <div class="action-icon">📊</div>
         <div>

@@ -128,11 +128,40 @@ function init() {
       value TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS grades (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subject_id INTEGER NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+      teacher_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      value REAL NOT NULL CHECK(value >= 1 AND value <= 10),
+      type TEXT NOT NULL DEFAULT 'oral' CHECK(type IN ('oral', 'scris', 'teza', 'proiect', 'referat', 'practica')),
+      description TEXT,
+      semester INTEGER NOT NULL DEFAULT 1 CHECK(semester IN (1, 2)),
+      school_year TEXT NOT NULL,
+      graded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS absences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subject_id INTEGER REFERENCES subjects(id) ON DELETE SET NULL,
+      teacher_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      date TEXT NOT NULL,
+      motivated INTEGER NOT NULL DEFAULT 0,
+      reason TEXT,
+      semester INTEGER NOT NULL DEFAULT 1 CHECK(semester IN (1, 2)),
+      school_year TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_resources_subject ON resources(subject_id);
     CREATE INDEX IF NOT EXISTS idx_resources_class ON resources(class_name);
     CREATE INDEX IF NOT EXISTS idx_homework_class ON homework(class_name);
     CREATE INDEX IF NOT EXISTS idx_submissions_student ON submissions(student_id);
     CREATE INDEX IF NOT EXISTS idx_submissions_homework ON submissions(homework_id);
+    CREATE INDEX IF NOT EXISTS idx_grades_student ON grades(student_id, subject_id, school_year);
+    CREATE INDEX IF NOT EXISTS idx_grades_year ON grades(school_year, semester);
+    CREATE INDEX IF NOT EXISTS idx_absences_student ON absences(student_id, school_year);
   `);
 
   const subjectsCount = db.prepare('SELECT COUNT(*) AS n FROM subjects').get().n;

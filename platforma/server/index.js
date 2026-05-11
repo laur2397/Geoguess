@@ -13,6 +13,7 @@ const resourcesRouter = require('./routes/resources');
 const homeworkRouter = require('./routes/homework');
 const progressRouter = require('./routes/progress');
 const settingsRouter = require('./routes/settings');
+const catalogRouter = require('./routes/catalog');
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -38,6 +39,7 @@ app.use('/api/resources', resourcesRouter);
 app.use('/api/homework', homeworkRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/catalog', catalogRouter);
 
 // Serve client build in production
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
