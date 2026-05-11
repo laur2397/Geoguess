@@ -5,23 +5,26 @@
 // de 500vh înălțime, cu o etapă "sticky" pin-uită la 100vh.
 // ============================================================================
 
-import * as THREE from "three";
+// Direct URL import (works on any browser supporting ES modules — Safari 11+,
+// Chrome 61+, Firefox 60+). Avoids importmap, which requires Safari 16.4+.
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
 
 const reduceMotion =
   window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const cinematicEl = document.getElementById("cinematic");
+const runwayEl = document.getElementById("top");
 const canvas = document.getElementById("cinematic-canvas");
-const overlayBefore = document.getElementById("cinematic-before");
-const overlayReveal = document.getElementById("cinematic-reveal");
-const scrollHint = document.getElementById("cinematic-hint");
+const ovHint = document.getElementById("ov-hint");
+const ovBefore = document.getElementById("ov-before");
+const ovSign = document.getElementById("ov-sign");
+const ovRadar = document.getElementById("ov-radar");
+const ovReveal = document.getElementById("ov-reveal");
 
-if (!canvas || !cinematicEl) {
+if (!canvas || !runwayEl) {
   // Nothing to do
 } else if (reduceMotion) {
   // Reduced-motion users: skip animation, show reveal statically
-  if (overlayReveal) overlayReveal.classList.add("is-visible");
-  cinematicEl.classList.add("is-static");
+  if (ovReveal) { ovReveal.style.opacity = "1"; ovReveal.classList.add("is-visible"); }
 } else {
   initCinematic();
 }
@@ -276,9 +279,11 @@ function initCinematic() {
   resize();
 
   function progress() {
-    const r = cinematicEl.getBoundingClientRect();
-    const total = Math.max(1, cinematicEl.offsetHeight - window.innerHeight);
-    return Math.max(0, Math.min(1, -r.top / total));
+    // Use scrollY relative to the runway height (works even on Safari without
+    // sticky support). The runway is a position:relative empty div with a
+    // tall fixed height; we use it purely as a scroll progress source.
+    const total = Math.max(1, runwayEl.offsetHeight - window.innerHeight);
+    return Math.max(0, Math.min(1, window.scrollY / total));
   }
 
   // Pause when offscreen or hidden
@@ -306,9 +311,9 @@ function initCinematic() {
     const t = clock.getElapsedTime();
     const p = progress();
 
-    // Skip rendering if cinematic is fully off-screen (perf)
-    const r = cinematicEl.getBoundingClientRect();
-    const onScreen = r.bottom > -50 && r.top < window.innerHeight + 50;
+    // Render whenever we're somewhere in the runway. Past the end (p=1),
+    // we still render so the reveal stays visible while the user lingers.
+    const onScreen = true;
 
     if (onScreen) {
       // ----- Truck motion --------------------------------------------------
@@ -447,19 +452,31 @@ function initCinematic() {
       updateSmoke(smoke, dt, truckP);
 
       // ----- Overlay opacities --------------------------------------------
-      if (overlayBefore) {
-        const fadeIn = Math.min(1, p * 6);
-        const fadeOut = Math.max(0, 1 - Math.max(0, (p - 0.55) / 0.15));
-        overlayBefore.style.opacity = fadeIn * fadeOut;
+      if (ovHint) {
+        ovHint.style.opacity = p < 0.05 ? 1 : Math.max(0, 1 - p * 12);
       }
-      if (overlayReveal) {
+      if (ovBefore) {
+        // Visible from 0.04 to 0.28
+        const o = clamp01(Math.min(p / 0.08, (0.32 - p) / 0.08));
+        ovBefore.style.opacity = o;
+      }
+      if (ovSign) {
+        // Visible during sign reveal (~0.30–0.46)
+        const o = clamp01(Math.min((p - 0.30) / 0.06, (0.50 - p) / 0.06));
+        ovSign.style.opacity = o;
+        ovSign.classList.toggle("is-visible", o > 0.5);
+      }
+      if (ovRadar) {
+        // Visible inside the base (~0.58–0.78)
+        const o = clamp01(Math.min((p - 0.58) / 0.06, (0.82 - p) / 0.06));
+        ovRadar.style.opacity = o;
+        ovRadar.classList.toggle("is-visible", o > 0.5);
+      }
+      if (ovReveal) {
         const rp = p < 0.84 ? 0 : Math.min(1, (p - 0.84) / 0.10);
-        overlayReveal.style.opacity = rp;
-        overlayReveal.style.transform = `translateY(${(1 - rp) * 26}px) scale(${0.985 + rp * 0.015})`;
-        overlayReveal.classList.toggle("is-visible", rp > 0.05);
-      }
-      if (scrollHint) {
-        scrollHint.style.opacity = p < 0.05 ? 1 : Math.max(0, 1 - p * 12);
+        ovReveal.style.opacity = rp;
+        ovReveal.style.transform = `translateY(${(1 - rp) * 26}px) scale(${0.985 + rp * 0.015})`;
+        ovReveal.classList.toggle("is-visible", rp > 0.05);
       }
 
       renderer.render(scene, camera);
@@ -1480,4 +1497,7 @@ function easeOutCubic(t) {
 }
 function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+function clamp01(t) {
+  return Math.max(0, Math.min(1, t));
 }
