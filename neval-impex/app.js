@@ -624,7 +624,9 @@ function applyLang(lang) {
 }
 
 const stored = (() => { try { return localStorage.getItem("neval.lang"); } catch (e) { return null; } })();
-const initialLang = stored || (navigator.language?.toLowerCase().startsWith("ro") ? "ro" : "en");
+// Default to English (user request). User can switch to RO via the toggle;
+// their choice is then persisted in localStorage.
+const initialLang = stored || "en";
 applyLang(initialLang);
 
 document.getElementById("lang-toggle").addEventListener("click", () => {

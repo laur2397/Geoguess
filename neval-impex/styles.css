@@ -213,20 +213,41 @@ a:focus-visible, button:focus-visible {
 .lang-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 8px 14px;
   border: 1px solid var(--line);
   border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  letter-spacing: 0.12em;
   color: var(--ink-dim);
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 .lang-toggle:hover { border-color: var(--line-strong); }
 .lang-toggle .lang { transition: color 0.2s ease; }
-.lang-toggle .is-active { color: var(--gold); }
+.lang-toggle .is-active { color: var(--gold); font-weight: 700; }
 .lang-sep { color: var(--ink-mute); }
+
+/* Prominent variant — order-1 so it sits before everything in the nav-actions row */
+.lang-toggle--prominent {
+  order: -1;
+  margin-right: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  border: 1.5px solid rgba(230, 194, 88, 0.45);
+  background: rgba(230, 194, 88, 0.08);
+  color: var(--ink);
+  box-shadow: 0 4px 18px -8px rgba(230, 194, 88, 0.35);
+}
+.lang-toggle--prominent:hover {
+  border-color: var(--gold);
+  background: rgba(230, 194, 88, 0.16);
+}
+.lang-toggle--prominent .is-active {
+  color: var(--gold);
+  text-shadow: 0 0 14px rgba(230, 194, 88, 0.55);
+}
 
 .cta-pill {
   display: inline-flex;
