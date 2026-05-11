@@ -163,11 +163,12 @@ function initCinematic() {
   scene.add(sign);
 
   // ===== BILLBOARD — NEVAL IMPEX contact info ==========================
-  // Placed early on the road so it's visible mid-journey. Has its own
-  // flood-light illuminating the panel.
+  // On the LEFT side of the road, facing east-southeast so an approaching
+  // northbound driver reads it clearly. The truck travels +Z, so "left"
+  // is -X and the face should look roughly toward (+X, -Z).
   const billboard = buildBillboard();
-  billboard.position.set(-9, 0, -75);
-  billboard.rotation.y = Math.PI / 7;     // angled toward the road
+  billboard.position.set(-11.5, 0, -75);
+  billboard.rotation.y = Math.PI / 2 + 0.25;     // perpendicular to road, tilted toward incoming truck
   scene.add(billboard);
 
   // ===== MILITARY BASE ===================================================
@@ -395,6 +396,90 @@ function initCinematic() {
     scene.add(blink);
   }
 
+  // ===== EXTRA BASE INFRASTRUCTURE ========================================
+
+  // Air traffic / dispatch control tower — tall slim tower with rotating
+  // beacon at the very top.
+  const controlTower = buildControlTower();
+  controlTower.position.set(-32, 0, 8);
+  scene.add(controlTower);
+
+  // Loading dock attached to the left warehouse (truck bays + dock leveler)
+  const dock = buildLoadingDock();
+  dock.position.set(-22, 0, 1);
+  scene.add(dock);
+
+  // Fuel station — pump + canopy + small forecourt
+  const fuelStation = buildFuelStation();
+  fuelStation.position.set(20, 0, 7);
+  scene.add(fuelStation);
+
+  // Generator / HVAC compound — small fenced area with units inside
+  const utilityYard = buildUtilityYard();
+  utilityYard.position.set(-30, 0, -5);
+  scene.add(utilityYard);
+
+  // Parked civilian trucks (2 smaller versions inside the base apron)
+  for (const [px, pz, rotY] of [[-7, -20, Math.PI / 2], [7, -36, -Math.PI / 2 + 0.1]]) {
+    const pt = buildParkedTruck();
+    pt.position.set(px, 0, pz);
+    pt.rotation.y = rotY;
+    scene.add(pt);
+  }
+
+  // Forklift inside the dock area
+  const forklift = buildForklift();
+  forklift.position.set(-15, 0, 3);
+  forklift.rotation.y = Math.PI / 4;
+  scene.add(forklift);
+
+  // Cargo crates scattered on the apron + near the warehouses
+  for (const [cx, cz, sx, sy, sz, color] of [
+    [-9, -8, 1.6, 1.6, 2.4, 0x665030],
+    [-9, -5, 1.6, 1.6, 2.4, 0x4a4a52],
+    [-7.5, -8, 1.6, 1.6, 2.4, 0x556a4a],
+    [9, 8, 2.0, 1.4, 3.0, 0x6a5030],
+    [13, 8, 2.0, 1.4, 3.0, 0x4a3a30],
+    [-15, -2, 1.4, 1.4, 2.0, 0x556a4a],
+  ]) {
+    const crate = buildCrate(sx, sy, sz, color);
+    crate.position.set(cx, sy / 2, cz);
+    scene.add(crate);
+  }
+
+  // Concrete jersey barriers along the edge of the apron near the gate
+  for (let xi = -3; xi <= 3; xi++) {
+    if (xi >= -1 && xi <= 1) continue; // gap for road
+    const jb = buildJerseyBarrier();
+    jb.position.set(xi * 3.2, 0, -49);
+    scene.add(jb);
+  }
+
+  // Radome (geodesic-look sphere on a short pillar) for visual variety
+  const radome = buildRadome();
+  radome.position.set(28, 0, -6);
+  scene.add(radome);
+
+  // Pipe / conduit run between warehouse and admin block (horizontal pipes
+  // on short stanchions)
+  for (let z = 5; z < 12; z += 0.6) {
+    const stanchion = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 1.0, 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x55555c, roughness: 0.85 })
+    );
+    stanchion.position.set(-15.5, 0.5, z);
+    scene.add(stanchion);
+  }
+  for (const [py, color] of [[1.0, 0x9aa6bd], [1.25, 0xd4af37], [1.5, 0x999]]) {
+    const pipe = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.08, 7, 12),
+      new THREE.MeshStandardMaterial({ color, metalness: 0.6, roughness: 0.4 })
+    );
+    pipe.rotation.x = Math.PI / 2;
+    pipe.position.set(-15.5, py, 8.5);
+    scene.add(pipe);
+  }
+
   // ===== RADAR (large, complex installation) ==============================
   const radar = buildRadar();
   radar.position.set(-16, 0, -28);
@@ -580,18 +665,17 @@ function initCinematic() {
       // pull-back at the very end.
       const camAngle =
         -0.35 + 0.95 * Math.sin(p * Math.PI * 0.85);
-      // Distance from truck — the truck is ~12m long, so we want to be
-      // ≥18m back to frame it whole plus context. Slightly closer at the
-      // middle of the journey, wider at start and end.
+      // Distance from truck — wider zoom-out so the skyline + base
+      // infrastructure are visible flanking the truck.
       const camDist =
         p < 0.86
-          ? 19 - 4 * Math.sin(p * Math.PI)         // 19 -> ~15 -> 19
-          : 19 + (p - 0.86) / 0.14 * 16;           // pull back to ~35
-      // Height — rises gradually so the city skyline stays visible.
+          ? 28 - 6 * Math.sin(p * Math.PI)         // 28 -> ~22 -> 28
+          : 28 + (p - 0.86) / 0.14 * 18;           // pull back to ~46
+      // Height — rises so the city skyline stays visible above the truck.
       const camH =
         p < 0.86
-          ? 6 + 2 * Math.sin(p * Math.PI)          // 6 -> ~8 -> 6
-          : 8 + (p - 0.86) / 0.14 * 6;             // up to ~14
+          ? 9 + 3 * Math.sin(p * Math.PI)          // 9 -> ~12 -> 9
+          : 12 + (p - 0.86) / 0.14 * 8;            // up to ~20 at reveal
 
       // Position the camera in truck-local orbital coordinates. The truck
       // faces +Z (it's driving toward larger Z values). "Behind" means
@@ -994,109 +1078,27 @@ function buildTruck(isMobile) {
   plate.position.set(0, 0.62, 4.541);
   g.add(plate);
 
-  // ----- Wheels (8 — front + 6 trailer/drive) — much more accurate -------
-  // Each wheel is a Group containing: tire (with subtle tread bumps), rim
-  // hub, 5 spokes, central nut. The whole group rotates together so spokes
-  // visibly spin.
-  const tireMat = new THREE.MeshPhysicalMaterial({
-    color: 0x0c0c0e, roughness: 0.95, metalness: 0.0,
-    clearcoat: 0.15, clearcoatRoughness: 0.6,
+  // ----- Wheels (8 — simple cylinder tires + bright rim disc) ------------
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.85 });
+  const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.46, 24);
+  const rimMat = new THREE.MeshStandardMaterial({
+    color: 0xb8b8c0, metalness: 0.75, roughness: 0.3,
   });
-  const rimMat = new THREE.MeshPhysicalMaterial({
-    color: 0xb0b3b8, metalness: 0.85, roughness: 0.32,
-    clearcoat: 0.5, clearcoatRoughness: 0.2,
-  });
-  const nutMat = new THREE.MeshStandardMaterial({ color: 0x444, metalness: 0.7, roughness: 0.4 });
-  const spokeMat = new THREE.MeshStandardMaterial({ color: 0x888, metalness: 0.7, roughness: 0.4 });
-  const sidewallMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.9 });
+  const rimGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.48, 16);
   const wheels = [];
   const zPositions = [3.6, 0.6, -1.5, -3.8];
-  function buildWheel() {
-    const wheelG = new THREE.Group();
-    // Outer tire (slightly squashed torus + cylinder for the contact face)
-    const tireOuter = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.6, 0.6, 0.42, 28),
-      tireMat
-    );
-    tireOuter.castShadow = !isMobile;
-    wheelG.add(tireOuter);
-    // Tire sidewall rims (slightly darker rings)
-    for (const dx of [-0.22, 0.22]) {
-      const side = new THREE.Mesh(
-        new THREE.TorusGeometry(0.58, 0.02, 6, 28),
-        sidewallMat
-      );
-      side.rotation.y = Math.PI / 2;
-      side.position.x = dx;
-      wheelG.add(side);
-    }
-    // Tire tread bumps (12 small dark cylinders evenly around the circumference)
-    for (let i = 0; i < 14; i++) {
-      const a = (i / 14) * Math.PI * 2;
-      const bump = new THREE.Mesh(
-        new THREE.BoxGeometry(0.45, 0.08, 0.14),
-        sidewallMat
-      );
-      bump.position.set(0, Math.sin(a) * 0.6, Math.cos(a) * 0.6);
-      bump.rotation.x = a;
-      wheelG.add(bump);
-    }
-    // Hub (rim plate)
-    for (const dx of [-0.215, 0.215]) {
-      const hub = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.42, 0.42, 0.02, 24),
-        rimMat
-      );
-      hub.position.x = dx;
-      wheelG.add(hub);
-      // Central nut
-      const nut = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.07, 0.04, 6),
-        nutMat
-      );
-      nut.position.x = dx + (dx > 0 ? 0.02 : -0.02);
-      wheelG.add(nut);
-      // 5 spokes
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2;
-        const spoke = new THREE.Mesh(
-          new THREE.BoxGeometry(0.04, 0.32, 0.07),
-          spokeMat
-        );
-        spoke.position.set(
-          dx + (dx > 0 ? 0.012 : -0.012),
-          Math.sin(a) * 0.21,
-          Math.cos(a) * 0.21
-        );
-        spoke.rotation.x = a;
-        wheelG.add(spoke);
-      }
-      // 5 lug bolts on outer face
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2 + Math.PI / 5;
-        const lug = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.025, 0.025, 0.03, 6),
-          nutMat
-        );
-        lug.position.set(
-          dx + (dx > 0 ? 0.02 : -0.02),
-          Math.sin(a) * 0.3,
-          Math.cos(a) * 0.3
-        );
-        lug.rotation.z = Math.PI / 2;
-        wheelG.add(lug);
-      }
-    }
-    // Orient so cylinder axis points along X (wheel rolls around its X axis)
-    wheelG.rotation.z = Math.PI / 2;
-    return wheelG;
-  }
   for (const z of zPositions) {
     for (const x of [-1.3, 1.3]) {
-      const w = buildWheel();
+      const w = new THREE.Mesh(wheelGeo, wheelMat);
+      w.rotation.z = Math.PI / 2;
       w.position.set(x, 0.6, z);
+      w.castShadow = !isMobile;
       g.add(w);
       wheels.push(w);
+      const rim = new THREE.Mesh(rimGeo, rimMat);
+      rim.rotation.z = Math.PI / 2;
+      rim.position.copy(w.position);
+      g.add(rim);
     }
   }
 
@@ -2649,6 +2651,472 @@ function makeBillboardTexture() {
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
   return t;
+}
+
+// ============================================================================
+// Control / dispatch tower — slim concrete + steel tower with glass cabin
+// at the top and a rotating beacon.
+// ============================================================================
+function buildControlTower() {
+  const g = new THREE.Group();
+  // Concrete base block
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(3.2, 1.6, 3.2),
+    new THREE.MeshStandardMaterial({ color: 0x55555c, roughness: 0.9 })
+  );
+  base.position.y = 0.8;
+  g.add(base);
+  // Shaft (square concrete pillar)
+  const shaft = new THREE.Mesh(
+    new THREE.BoxGeometry(1.6, 11, 1.6),
+    new THREE.MeshStandardMaterial({ color: 0x6e6e76, roughness: 0.85 })
+  );
+  shaft.position.y = 7.1;
+  shaft.castShadow = true;
+  g.add(shaft);
+  // Vertical window strip on shaft
+  const winStrip = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.5, 8),
+    new THREE.MeshStandardMaterial({
+      color: 0xffeebb, emissive: 0xffcc66, emissiveIntensity: 1.2, roughness: 0.2,
+    })
+  );
+  winStrip.position.set(0, 7.0, 0.811);
+  g.add(winStrip);
+  // Glass cabin at the top (octagonal-ish — box + corner cuts approximation)
+  const cabin = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.3, 2.0, 2.4, 8),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x66aacc, roughness: 0.08, metalness: 0.5,
+      transmission: 0.25, transparent: true, opacity: 0.85, ior: 1.4,
+      emissive: 0x223344, emissiveIntensity: 0.4,
+    })
+  );
+  cabin.position.y = 14;
+  cabin.castShadow = true;
+  g.add(cabin);
+  // Cabin floor + roof bands
+  const floor = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.4, 2.4, 0.18, 8),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.6, roughness: 0.4 })
+  );
+  floor.position.y = 12.85;
+  g.add(floor);
+  const roof = floor.clone();
+  roof.position.y = 15.25;
+  g.add(roof);
+  // Tapered cone roof on top
+  const roofCone = new THREE.Mesh(
+    new THREE.ConeGeometry(1.5, 1.5, 8),
+    new THREE.MeshStandardMaterial({ color: 0x333, roughness: 0.7 })
+  );
+  roofCone.position.y = 16.1;
+  g.add(roofCone);
+  // Antenna mast on top
+  const mast = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.06, 0.06, 4, 8),
+    new THREE.MeshStandardMaterial({ color: 0xaaa })
+  );
+  mast.position.y = 18.5;
+  g.add(mast);
+  // Red beacon at the very top
+  const beacon = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 2 })
+  );
+  beacon.position.y = 20.7;
+  g.add(beacon);
+  // Subtle warm point light from cabin
+  const cabinLight = new THREE.PointLight(0xffcc88, 0.6, 14, 1.8);
+  cabinLight.position.y = 14;
+  g.add(cabinLight);
+  return g;
+}
+
+// ============================================================================
+// Loading dock — concrete platform with 3 truck bays + dock-leveler doors
+// ============================================================================
+function buildLoadingDock() {
+  const g = new THREE.Group();
+  // Raised concrete platform
+  const platform = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 1.1, 4.5),
+    new THREE.MeshStandardMaterial({ color: 0x5a5a62, roughness: 0.9 })
+  );
+  platform.position.set(0, 0.55, 0);
+  platform.castShadow = true;
+  g.add(platform);
+  // Yellow edge stripe (hazard marking)
+  const edge = new THREE.Mesh(
+    new THREE.BoxGeometry(14, 0.05, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, emissive: 0x3a2a08, emissiveIntensity: 0.3 })
+  );
+  edge.position.set(0, 1.13, 2.25);
+  g.add(edge);
+  // 3 truck bay doors (roll-up doors on the back wall, against the warehouse)
+  for (let i = -1; i <= 1; i++) {
+    const door = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 3.6),
+      new THREE.MeshStandardMaterial({ color: 0xd4af37, emissive: 0x3a2a08, emissiveIntensity: 0.15, roughness: 0.5 })
+    );
+    door.position.set(i * 4.0, 2.9, -2.24);
+    door.rotation.y = Math.PI;
+    g.add(door);
+    // Horizontal door slats
+    for (let yy = 0.4; yy < 3.5; yy += 0.4) {
+      const slat = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.1, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0x8a6a1a, roughness: 0.6 })
+      );
+      slat.position.set(i * 4.0, 1.1 + yy, -2.245);
+      slat.rotation.y = Math.PI;
+      g.add(slat);
+    }
+    // Door light (warm bulb above each bay)
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 0.18, 0.3),
+      new THREE.MeshStandardMaterial({
+        color: 0xfff5d8, emissive: 0xffcc66, emissiveIntensity: 1.8,
+      })
+    );
+    lamp.position.set(i * 4.0, 4.9, -1.9);
+    g.add(lamp);
+  }
+  return g;
+}
+
+// ============================================================================
+// Fuel station — pump under a canopy + bollards + ground markings
+// ============================================================================
+function buildFuelStation() {
+  const g = new THREE.Group();
+  // Canopy support columns
+  for (const [cx, cz] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) {
+    const col = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.22, 4.5, 12),
+      new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.6, roughness: 0.4 })
+    );
+    col.position.set(cx, 2.25, cz);
+    col.castShadow = true;
+    g.add(col);
+  }
+  // Canopy roof
+  const canopy = new THREE.Mesh(
+    new THREE.BoxGeometry(6, 0.35, 6),
+    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 })
+  );
+  canopy.position.y = 4.65;
+  canopy.castShadow = true;
+  g.add(canopy);
+  // Canopy gold trim band
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(6.1, 0.12, 6.1),
+    new THREE.MeshStandardMaterial({
+      color: 0xd4af37, metalness: 0.7, roughness: 0.4,
+      emissive: 0x3a2a08, emissiveIntensity: 0.3,
+    })
+  );
+  trim.position.y = 4.4;
+  g.add(trim);
+  // Under-canopy lights
+  for (const [lx, lz] of [[-1.5, -1.5], [1.5, -1.5], [-1.5, 1.5], [1.5, 1.5]]) {
+    const ul = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.1, 0.6),
+      new THREE.MeshStandardMaterial({
+        color: 0xfff5d8, emissive: 0xffeebb, emissiveIntensity: 2,
+      })
+    );
+    ul.position.set(lx, 4.45, lz);
+    g.add(ul);
+  }
+  // Pump island (central)
+  const island = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, 0.2, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0x666, roughness: 0.9 })
+  );
+  island.position.y = 0.1;
+  g.add(island);
+  // Two fuel pumps on the island
+  for (const px of [-0.7, 0.7]) {
+    const pump = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 1.6, 0.4),
+      new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.4, metalness: 0.5 })
+    );
+    pump.position.set(px, 0.9, 0);
+    g.add(pump);
+    // Display
+    const disp = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.45, 0.3),
+      new THREE.MeshStandardMaterial({
+        color: 0x111, emissive: 0x33ff99, emissiveIntensity: 0.6,
+      })
+    );
+    disp.position.set(px, 1.4, 0.21);
+    g.add(disp);
+    // Nozzle hose
+    const hose = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 0.6, 8),
+      new THREE.MeshStandardMaterial({ color: 0x222 })
+    );
+    hose.position.set(px + 0.25, 0.9, 0.15);
+    hose.rotation.z = -Math.PI / 4;
+    g.add(hose);
+  }
+  // Bollards protecting the pumps
+  for (const [bx, bz] of [[-1.6, 0.8], [1.6, 0.8], [-1.6, -0.8], [1.6, -0.8]]) {
+    const bol = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.22, 0.7, 10),
+      new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, emissive: 0x3a2a08, emissiveIntensity: 0.2 })
+    );
+    bol.position.set(bx, 0.35, bz);
+    g.add(bol);
+  }
+  return g;
+}
+
+// ============================================================================
+// Utility yard — small fenced area containing a generator + HVAC units
+// ============================================================================
+function buildUtilityYard() {
+  const g = new THREE.Group();
+  // Concrete pad
+  const pad = new THREE.Mesh(
+    new THREE.BoxGeometry(5, 0.1, 4),
+    new THREE.MeshStandardMaterial({ color: 0x55555c, roughness: 0.9 })
+  );
+  pad.position.y = 0.05;
+  g.add(pad);
+  // 4 generator units (boxes)
+  for (let i = 0; i < 4; i++) {
+    const gen = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 1.0, 1.4),
+      new THREE.MeshStandardMaterial({
+        color: 0x6a5030, roughness: 0.8, metalness: 0.1,
+      })
+    );
+    gen.position.set(-1.6 + (i % 2) * 3.2, 0.6, -0.8 + Math.floor(i / 2) * 1.6);
+    g.add(gen);
+    // Exhaust pipe
+    const exh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 0.6, 8),
+      new THREE.MeshStandardMaterial({ color: 0x444, metalness: 0.7 })
+    );
+    exh.position.set(gen.position.x + 0.3, 1.4, gen.position.z);
+    g.add(exh);
+  }
+  // Small fence around the yard (4 sides, short)
+  const fMat = new THREE.MeshStandardMaterial({ color: 0x999, roughness: 0.4, metalness: 0.4 });
+  // Four corner posts + railing
+  for (const [fx, fz] of [[-2.5, -2.0], [2.5, -2.0], [-2.5, 2.0], [2.5, 2.0]]) {
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6),
+      fMat
+    );
+    post.position.set(fx, 0.8, fz);
+    g.add(post);
+  }
+  for (const [side, z1, z2] of [["X", -2.0, 2.0]]) {
+    void side; void z1; void z2;
+  }
+  return g;
+}
+
+// ============================================================================
+// Parked truck (simpler / smaller version for filler)
+// ============================================================================
+function buildParkedTruck() {
+  const g = new THREE.Group();
+  // Trailer
+  const trailer = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 2.4, 5.5),
+    new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.55, metalness: 0.15 })
+  );
+  trailer.position.set(0, 1.7, -1.5);
+  trailer.castShadow = true;
+  g.add(trailer);
+  // Cab
+  const cab = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 2.1, 1.8),
+    new THREE.MeshStandardMaterial({ color: 0x556a4a, roughness: 0.45, metalness: 0.2 })
+  );
+  cab.position.set(0, 1.5, 2.2);
+  cab.castShadow = true;
+  g.add(cab);
+  // Windshield (single plane)
+  const win = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x0a1830, roughness: 0.05, metalness: 0.8 })
+  );
+  win.position.set(0, 2.05, 3.11);
+  g.add(win);
+  // Wheels (6)
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.85 });
+  for (const z of [2.4, 0.6, -2.0, -3.4]) {
+    for (const x of [-1.1, 1.1]) {
+      const w = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.48, 0.48, 0.4, 16),
+        wheelMat
+      );
+      w.rotation.z = Math.PI / 2;
+      w.position.set(x, 0.48, z);
+      g.add(w);
+    }
+  }
+  return g;
+}
+
+// ============================================================================
+// Forklift — small industrial vehicle
+// ============================================================================
+function buildForklift() {
+  const g = new THREE.Group();
+  // Body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 1.0, 1.8),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, metalness: 0.4 })
+  );
+  body.position.set(0, 0.7, 0);
+  body.castShadow = true;
+  g.add(body);
+  // Cabin frame
+  for (const cx of [-0.5, 0.5]) {
+    for (const cz of [-0.7, 0.7]) {
+      const post = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 1.4, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0x333 })
+      );
+      post.position.set(cx, 1.85, cz);
+      g.add(post);
+    }
+  }
+  // Cabin roof
+  const cabRoof = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 0.06, 1.6),
+    new THREE.MeshStandardMaterial({ color: 0x222 })
+  );
+  cabRoof.position.set(0, 2.6, 0);
+  g.add(cabRoof);
+  // Mast (vertical lifting rails)
+  for (const mx of [-0.4, 0.4]) {
+    const mast = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 2.6, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x555, metalness: 0.6 })
+    );
+    mast.position.set(mx, 1.3, 1.05);
+    g.add(mast);
+  }
+  // Forks (horizontal flat blades extending forward)
+  for (const fx of [-0.35, 0.35]) {
+    const fork = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.05, 1.4),
+      new THREE.MeshStandardMaterial({ color: 0x888, metalness: 0.7, roughness: 0.4 })
+    );
+    fork.position.set(fx, 0.15, 1.7);
+    g.add(fork);
+  }
+  // Wheels (4)
+  for (const [wx, wz] of [[-0.55, -0.6], [0.55, -0.6], [-0.55, 0.6], [0.55, 0.6]]) {
+    const w = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.28, 0.22, 12),
+      new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 })
+    );
+    w.rotation.z = Math.PI / 2;
+    w.position.set(wx, 0.28, wz);
+    g.add(w);
+  }
+  return g;
+}
+
+// ============================================================================
+// Wooden / plastic cargo crate
+// ============================================================================
+function buildCrate(sx, sy, sz, color) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(sx, sy, sz),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.85 })
+  );
+  body.castShadow = true;
+  body.receiveShadow = true;
+  g.add(body);
+  // Reinforcement bands (8 edges as thin dark boxes)
+  const bandMat = new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 });
+  for (const dy of [-sy / 2 + 0.05, sy / 2 - 0.05]) {
+    for (const dz of [-sz / 2 + 0.025, sz / 2 - 0.025]) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(sx + 0.02, 0.04, 0.04), bandMat);
+      band.position.set(0, dy, dz);
+      g.add(band);
+    }
+  }
+  for (const dx of [-sx / 2 + 0.025, sx / 2 - 0.025]) {
+    for (const dy of [-sy / 2 + 0.05, sy / 2 - 0.05]) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, sz + 0.02), bandMat);
+      band.position.set(dx, dy, 0);
+      g.add(band);
+    }
+  }
+  return g;
+}
+
+// ============================================================================
+// Concrete jersey barrier (highway-style modular barrier)
+// ============================================================================
+function buildJerseyBarrier() {
+  const g = new THREE.Group();
+  // Trapezoidal cross-section approximated with a stack of boxes
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(2.8, 0.4, 0.7),
+    new THREE.MeshStandardMaterial({ color: 0xbbbbbf, roughness: 0.92 })
+  );
+  base.position.y = 0.2;
+  g.add(base);
+  const mid = new THREE.Mesh(
+    new THREE.BoxGeometry(2.8, 0.4, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0xccccd0, roughness: 0.92 })
+  );
+  mid.position.y = 0.6;
+  g.add(mid);
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(2.8, 0.18, 0.25),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.6 })
+  );
+  top.position.y = 0.89;
+  g.add(top);
+  return g;
+}
+
+// ============================================================================
+// Radome — geodesic-style white sphere on a short pillar
+// ============================================================================
+function buildRadome() {
+  const g = new THREE.Group();
+  // Pillar
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.8, 1.0, 2.2, 16),
+    new THREE.MeshStandardMaterial({ color: 0x6e6e76, roughness: 0.85 })
+  );
+  pillar.position.y = 1.1;
+  pillar.castShadow = true;
+  g.add(pillar);
+  // White sphere (segmented to look geodesic)
+  const sphere = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.5, 1),
+    new THREE.MeshStandardMaterial({
+      color: 0xeef0f4, roughness: 0.65, metalness: 0.1,
+      emissive: 0x222226, emissiveIntensity: 0.1,
+    })
+  );
+  sphere.position.y = 3.5;
+  sphere.castShadow = true;
+  g.add(sphere);
+  // Wireframe overlay to emphasise geodesic look
+  const wire = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.51, 1),
+    new THREE.MeshBasicMaterial({ color: 0x666, wireframe: true, transparent: true, opacity: 0.6 })
+  );
+  wire.position.y = 3.5;
+  g.add(wire);
+  return g;
 }
 
 function buildSkyscraper(w, h, d, tint, rand) {
