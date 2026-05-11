@@ -224,6 +224,10 @@ const dict = {
     "nav.contact": "Contact",
     "nav.cta": "Contactați-ne",
 
+    "cin.hint": "Scrolează pentru a porni",
+    "cin.approach": "→ Drum spre certificare NATO",
+    "cin.continue": "Continuă",
+
     "hero.eyebrow": "Furnizor certificat NATO · Din 2018",
     "hero.t1": "Parteneri de încredere",
     "hero.t2": "pentru forțele militare",
@@ -417,6 +421,10 @@ const dict = {
     "nav.portfolio": "Portfolio",
     "nav.contact": "Contact",
     "nav.cta": "Get in touch",
+
+    "cin.hint": "Scroll to begin",
+    "cin.approach": "→ Road to NATO certification",
+    "cin.continue": "Continue",
 
     "hero.eyebrow": "NATO-certified supplier · Since 2018",
     "hero.t1": "Trusted partners",
