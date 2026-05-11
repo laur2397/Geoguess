@@ -314,6 +314,57 @@ function initCinematic() {
     scene.add(b);
   }
 
+  // ----- Far-distance city skyline (skyscrapers flanking the road journey) -
+  // Procedurally seeded so the same skyline appears every time the page loads.
+  const skylineSeed = 73;
+  const rand = mulberry32(skylineSeed);
+  // Layout: rows on both sides at z = -200..-50, x = ±(45..90).
+  // Two rows per side for layered depth.
+  const skylinePlacements = [];
+  for (let z = -210; z <= -45; z += 9 + Math.floor(rand() * 4)) {
+    for (const side of [-1, 1]) {
+      // Front row of tall buildings (closer to road)
+      skylinePlacements.push({
+        x: side * (42 + rand() * 14),
+        z: z + (rand() - 0.5) * 6,
+        h: 22 + rand() * 38,        // 22-60m height
+        w: 4 + rand() * 5,
+        d: 4 + rand() * 5,
+        tint: 0x14 + Math.floor(rand() * 0x12),
+      });
+      // Back row — taller, further away
+      if (rand() > 0.35) {
+        skylinePlacements.push({
+          x: side * (62 + rand() * 22),
+          z: z + (rand() - 0.5) * 8,
+          h: 28 + rand() * 42,      // 28-70m height
+          w: 5 + rand() * 6,
+          d: 5 + rand() * 6,
+          tint: 0x10 + Math.floor(rand() * 0x10),
+        });
+      }
+    }
+  }
+  for (const p of skylinePlacements) {
+    const sky = buildSkyscraper(p.w, p.h, p.d, p.tint, rand);
+    sky.position.set(p.x, 0, p.z);
+    scene.add(sky);
+  }
+
+  // Aircraft warning blink lights at the very tops of the tallest skyscrapers
+  // (purely decorative red dots that pulse gently)
+  for (const p of skylinePlacements) {
+    if (p.h < 50) continue;
+    const blink = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 8, 8),
+      new THREE.MeshStandardMaterial({
+        color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 1.8,
+      })
+    );
+    blink.position.set(p.x, p.h + 0.4, p.z);
+    scene.add(blink);
+  }
+
   // ===== RADAR (large, complex installation) ==============================
   const radar = buildRadar();
   radar.position.set(-16, 0, -28);
@@ -2311,4 +2362,147 @@ function easeOutCubic(t) {
 }
 function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+// Seeded PRNG so the skyline layout is identical on every load.
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ============================================================================
+// Skyscraper — tall building with random window pattern (city silhouette)
+// ============================================================================
+function buildSkyscraper(w, h, d, tint, rand) {
+  const g = new THREE.Group();
+
+  // Concrete plinth at the base (slightly wider)
+  const plinth = new THREE.Mesh(
+    new THREE.BoxGeometry(w + 0.3, 0.6, d + 0.3),
+    new THREE.MeshStandardMaterial({ color: 0x18181c, roughness: 0.92 })
+  );
+  plinth.position.y = 0.3;
+  g.add(plinth);
+
+  // Main tower body (dark — silhouette feel)
+  const bodyColor = new THREE.Color(tint, tint, tint + 4).convertLinearToSRGB();
+  // Build a colour from tint byte (e.g. 0x1c -> #1c1c20)
+  const c = tint;
+  const bodyHex = (c << 16) | (c << 8) | (c + 4);
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshStandardMaterial({
+      color: bodyHex,
+      roughness: 0.78,
+      metalness: 0.18,
+    })
+  );
+  body.position.y = h / 2 + 0.6;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  g.add(body);
+
+  // Window grid — small bright dots representing lit windows.
+  // Use random sparseness so each building looks unique. Group all the
+  // lit windows of one building into a single Points mesh for performance.
+  const winCols = Math.max(3, Math.floor(w * 1.7));
+  const winRows = Math.max(8, Math.floor(h * 0.6));
+  const winSpacingX = w * 0.85 / winCols;
+  const winSpacingY = (h - 1.2) / winRows;
+  const litPositions = [];
+  const litColors = [];
+
+  // Lit windows on the two long faces
+  for (const face of [-1, 1]) {
+    for (let row = 0; row < winRows; row++) {
+      for (let col = 0; col < winCols; col++) {
+        if (rand() > 0.55) continue;          // only ~45% of windows are lit
+        const px = -w * 0.4 + col * winSpacingX + winSpacingX / 2;
+        const py = 0.9 + row * winSpacingY + winSpacingY / 2;
+        const pz = face * (d / 2 + 0.02);
+        litPositions.push(px, py, pz);
+        // Mostly warm yellow, occasionally cool white
+        if (rand() > 0.85) {
+          litColors.push(0.85, 0.9, 1.0);
+        } else {
+          litColors.push(1.0, 0.85 + rand() * 0.1, 0.5 + rand() * 0.2);
+        }
+      }
+    }
+  }
+  // Lit windows on the two short faces
+  for (const face of [-1, 1]) {
+    const cols2 = Math.max(2, Math.floor(d * 1.7));
+    const spacing2 = d * 0.85 / cols2;
+    for (let row = 0; row < winRows; row++) {
+      for (let col = 0; col < cols2; col++) {
+        if (rand() > 0.5) continue;
+        const px = face * (w / 2 + 0.02);
+        const py = 0.9 + row * winSpacingY + winSpacingY / 2;
+        const pz = -d * 0.4 + col * spacing2 + spacing2 / 2;
+        litPositions.push(px, py, pz);
+        if (rand() > 0.85) {
+          litColors.push(0.85, 0.9, 1.0);
+        } else {
+          litColors.push(1.0, 0.85 + rand() * 0.1, 0.5 + rand() * 0.2);
+        }
+      }
+    }
+  }
+
+  if (litPositions.length > 0) {
+    const winGeo = new THREE.BufferGeometry();
+    winGeo.setAttribute("position", new THREE.Float32BufferAttribute(litPositions, 3));
+    winGeo.setAttribute("color", new THREE.Float32BufferAttribute(litColors, 3));
+    const winMat = new THREE.PointsMaterial({
+      size: 0.32,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      sizeAttenuation: true,
+    });
+    g.add(new THREE.Points(winGeo, winMat));
+  }
+
+  // Subtle gold trim band at the top (corporate skyscraper feel)
+  if (h > 30) {
+    const trim = new THREE.Mesh(
+      new THREE.BoxGeometry(w * 1.04, 0.2, d * 1.04),
+      new THREE.MeshStandardMaterial({
+        color: 0xd4af37, metalness: 0.7, roughness: 0.4,
+        emissive: 0x3a2a08, emissiveIntensity: 0.25,
+      })
+    );
+    trim.position.y = h - 0.6;
+    g.add(trim);
+  }
+
+  // Roof structure — antenna or HVAC box for variety
+  const roofChoice = rand();
+  if (roofChoice > 0.6 && h > 35) {
+    // Antenna on top
+    const ant = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.12, 4 + rand() * 4, 6),
+      new THREE.MeshStandardMaterial({ color: 0xaaa })
+    );
+    ant.position.y = h + 2.5;
+    g.add(ant);
+  } else if (roofChoice > 0.3) {
+    // HVAC box
+    const hvac = new THREE.Mesh(
+      new THREE.BoxGeometry(w * 0.5, 0.8, d * 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.8 })
+    );
+    hvac.position.y = h + 0.7;
+    g.add(hvac);
+  }
+
+  return g;
 }
