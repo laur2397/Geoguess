@@ -84,29 +84,29 @@ function initCinematic() {
   ground.receiveShadow = !isMobile;
   scene.add(ground);
 
-  // Road
+  // Road (extended for longer journey)
   const road = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 400),
+    new THREE.PlaneGeometry(11, 600),
     new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.88, metalness: 0.08 })
   );
   road.rotation.x = -Math.PI / 2;
-  road.position.set(0, 0.01, -100);
+  road.position.set(0, 0.01, -150);
   road.receiveShadow = !isMobile;
   scene.add(road);
 
   // Road edge lines
-  for (const x of [-4.5, 4.5]) {
+  for (const x of [-5.0, 5.0]) {
     const edge = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.16, 400),
+      new THREE.PlaneGeometry(0.18, 600),
       new THREE.MeshStandardMaterial({ color: 0xfff5d8, roughness: 0.6, emissive: 0x554400, emissiveIntensity: 0.18 })
     );
     edge.rotation.x = -Math.PI / 2;
-    edge.position.set(x, 0.02, -100);
+    edge.position.set(x, 0.02, -150);
     scene.add(edge);
   }
 
-  // Road dashes (center, dashed)
-  for (let z = -260; z < 20; z += 7) {
+  // Road dashes (center, dashed) — span full journey
+  for (let z = -440; z < 20; z += 7) {
     const dash = new THREE.Mesh(
       new THREE.PlaneGeometry(0.18, 3.2),
       new THREE.MeshStandardMaterial({ color: 0xfff5d8, roughness: 0.6, emissive: 0x554400, emissiveIntensity: 0.25 })
@@ -117,8 +117,8 @@ function initCinematic() {
   }
 
   // Reflective roadside posts
-  for (let z = -250; z < 10; z += 11) {
-    for (const x of [-5.8, 5.8]) {
+  for (let z = -420; z < 10; z += 11) {
+    for (const x of [-6.3, 6.3]) {
       const post = new THREE.Mesh(
         new THREE.CylinderGeometry(0.06, 0.06, 1.0, 8),
         new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 })
@@ -133,6 +133,45 @@ function initCinematic() {
       scene.add(ref);
     }
   }
+
+  // ===== ROAD SIGN — DEVESELU ============================================
+  const sign = buildHighwaySign("→  NSF DEVESELU", "2 KM   ·   NATO");
+  sign.position.set(7.5, 0, -110);
+  sign.rotation.y = -Math.PI / 9;
+  scene.add(sign);
+
+  // ===== MILITARY BASE ===================================================
+  const gate = buildMilitaryGate();
+  gate.position.set(0, 0, -58);
+  scene.add(gate);
+
+  // Watchtowers flanking the gate
+  const tower1 = buildWatchtower();
+  tower1.position.set(-13, 0, -52);
+  scene.add(tower1);
+  const tower2 = buildWatchtower();
+  tower2.position.set(13, 0, -52);
+  tower2.rotation.y = Math.PI; // face inward
+  scene.add(tower2);
+
+  // Fence on both sides of the road, extending from the gate forward
+  for (let z = -55; z < -8; z += 3.5) {
+    for (const x of [-9, 9]) {
+      const fence = buildFenceSegment();
+      fence.position.set(x, 0, z);
+      scene.add(fence);
+    }
+  }
+
+  // ===== RADAR (rotating, with sweep light) ==============================
+  const radar = buildRadar();
+  radar.position.set(-15, 0, -28);
+  scene.add(radar);
+
+  // Secondary smaller radar / antenna on the other side for balance
+  const antenna = buildAntenna();
+  antenna.position.set(14, 0, -22);
+  scene.add(antenna);
 
   // Distant stars
   const starsGeo = new THREE.BufferGeometry();
@@ -162,7 +201,7 @@ function initCinematic() {
 
   // ===== TRUCK =============================================================
   const truck = buildTruck(isMobile);
-  truck.position.set(0, 0, -90);
+  truck.position.set(0, 0, -150);
   scene.add(truck);
 
   // Exhaust smoke particles (continuous, subtle)
@@ -217,13 +256,23 @@ function initCinematic() {
   let impactT = 0;
 
   function resize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    renderer.setSize(w, h);
+    // Use the stage's actual rendered size — avoids the dynamic-viewport
+    // gap on iOS/macOS Safari where window.innerHeight lies about chrome bars.
+    const stage = canvas.parentElement;
+    const w = stage?.clientWidth || window.innerWidth;
+    const h = stage?.clientHeight || window.innerHeight;
+    renderer.setSize(w, h, false);
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
   window.addEventListener("resize", resize);
+  window.addEventListener("orientationchange", resize);
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(() => resize());
+    if (canvas.parentElement) ro.observe(canvas.parentElement);
+  }
   resize();
 
   function progress() {
@@ -263,63 +312,94 @@ function initCinematic() {
 
     if (onScreen) {
       // ----- Truck motion --------------------------------------------------
-      const truckP = Math.min(1, p / 0.78);
-      truck.position.z = THREE.MathUtils.lerp(-90, -4.5, easeOutCubic(truckP));
-      truck.position.x = Math.sin(p * 8) * 0.18;
-      truck.rotation.y = Math.sin(p * 5.5) * 0.022;
+      const truckP = Math.min(1, p / 0.80);
+      truck.position.z = THREE.MathUtils.lerp(-150, -4.5, easeOutCubic(truckP));
+      truck.position.x = Math.sin(p * 9) * 0.2;
+      truck.rotation.y = Math.sin(p * 6) * 0.022;
 
       // Wheels — spin faster early, slow at approach
-      const speed = 13 - 9 * truckP;
+      const speed = 14 - 10 * truckP;
       for (const w of truck.userData.wheels) w.rotation.x -= dt * speed;
 
-      // ----- Camera choreography -------------------------------------------
-      if (p < 0.16) {
-        // Establishing wide overhead
-        const k = p / 0.16;
+      // ----- Radar — continuous rotation + blink --------------------------
+      radar.userData.dishGroup.rotation.y += dt * 0.55;
+      radar.userData.blink.material.emissiveIntensity = 1.6 + Math.sin(t * 7) * 1.4;
+      // Lock head-on detection when truck is near (z > -35 means inside base)
+      const inBase = truck.position.z > -45;
+      radar.userData.sweepLight.intensity = inBase ? 2.5 : 1.4;
+      antenna.userData.blink.material.emissiveIntensity = 0.8 + Math.sin(t * 4 + 1) * 0.7;
+
+      // ----- Camera choreography ------------------------------------------
+      // Phase 1: 0–13% wide establishing
+      // Phase 2: 13–32% side-rear tracking on open road
+      // Phase 3: 32–46% slow-down + DEVESELU sign reveal (camera tilts toward sign)
+      // Phase 4: 46–60% truck approaches base gate (low-angle hero shot)
+      // Phase 5: 60–75% inside base — wide shot showing truck + radar
+      // Phase 6: 75–84% head-on climax with shield
+      // Phase 7: 84–100% aftermath pull-back
+      if (p < 0.13) {
+        const k = p / 0.13;
         camera.position.set(
-          THREE.MathUtils.lerp(16, 10, k),
-          THREE.MathUtils.lerp(11, 5.5, k),
-          THREE.MathUtils.lerp(-72, truck.position.z - 7, k)
+          THREE.MathUtils.lerp(18, 11, k),
+          THREE.MathUtils.lerp(13, 6, k),
+          THREE.MathUtils.lerp(-130, truck.position.z - 8, k)
         );
         camera.lookAt(truck.position.x, 2.0, truck.position.z + 5);
-      } else if (p < 0.52) {
-        // Tight side-rear tracking
-        const k = (p - 0.16) / 0.36;
+      } else if (p < 0.32) {
+        const k = (p - 0.13) / 0.19;
         camera.position.set(
-          THREE.MathUtils.lerp(10, 6.5, k),
-          THREE.MathUtils.lerp(5.5, 3.6, k),
+          THREE.MathUtils.lerp(11, 8, k),
+          THREE.MathUtils.lerp(6, 4, k),
           truck.position.z - 7
         );
         camera.lookAt(truck.position.x, 2.2, truck.position.z + 8);
-      } else if (p < 0.74) {
-        // Sweep around to front
-        const k = (p - 0.52) / 0.22;
-        const ang = THREE.MathUtils.lerp(Math.PI * 0.16, -Math.PI * 0.05, easeInOut(k));
-        const dist = 16;
+      } else if (p < 0.46) {
+        // Sign reveal — camera slows + pans toward sign briefly
+        const k = (p - 0.32) / 0.14;
+        const signZ = -110;
+        const lookZ = THREE.MathUtils.lerp(truck.position.z + 8, signZ, easeInOut(k * 0.6));
         camera.position.set(
-          Math.sin(ang) * dist,
-          THREE.MathUtils.lerp(3.6, 4.6, k),
-          truck.position.z + Math.cos(ang) * dist + 4
+          THREE.MathUtils.lerp(8, 9.5, k),
+          THREE.MathUtils.lerp(4, 4.5, k),
+          THREE.MathUtils.lerp(truck.position.z - 7, truck.position.z - 5, k)
         );
-        camera.lookAt(0, 3, truck.position.z + 4);
+        camera.lookAt(THREE.MathUtils.lerp(0, 6, k * 0.5), 3, lookZ);
+      } else if (p < 0.60) {
+        // Approaching base — low-angle hero shot framing truck + gate
+        const k = (p - 0.46) / 0.14;
+        camera.position.set(
+          THREE.MathUtils.lerp(9.5, 7, k),
+          THREE.MathUtils.lerp(4.5, 2.6, k),
+          THREE.MathUtils.lerp(truck.position.z - 5, -40, k)
+        );
+        camera.lookAt(0, 3, THREE.MathUtils.lerp(-30, -55, k));
+      } else if (p < 0.75) {
+        // Inside the base — wide shot with radar prominent on the left
+        const k = (p - 0.60) / 0.15;
+        camera.position.set(
+          THREE.MathUtils.lerp(12, 15, k),
+          THREE.MathUtils.lerp(5, 6.5, k),
+          THREE.MathUtils.lerp(-35, -15, k)
+        );
+        camera.lookAt(THREE.MathUtils.lerp(-2, -6, k), 4, THREE.MathUtils.lerp(-25, -18, k));
       } else if (p < 0.84) {
-        // Approach climax — head-on with shield
-        const k = (p - 0.74) / 0.10;
+        // Head-on climax with shield
+        const k = (p - 0.75) / 0.09;
         camera.position.set(
-          THREE.MathUtils.lerp(0, 0, k),
-          THREE.MathUtils.lerp(4.6, 5.0, k),
-          THREE.MathUtils.lerp(15, 20, k)
+          THREE.MathUtils.lerp(15, 0, k),
+          THREE.MathUtils.lerp(6.5, 5.0, k),
+          THREE.MathUtils.lerp(-15, 20, k)
         );
-        camera.lookAt(0, 3.8, 0);
+        camera.lookAt(THREE.MathUtils.lerp(-6, 0, k), 4, THREE.MathUtils.lerp(-18, 0, k));
       } else {
-        // Aftermath — pull back to reveal
+        // Aftermath pull-back
         const k = (p - 0.84) / 0.16;
         camera.position.set(
-          THREE.MathUtils.lerp(0, 14, easeOutCubic(k)),
-          THREE.MathUtils.lerp(5.0, 9, k),
-          THREE.MathUtils.lerp(20, 30, k)
+          THREE.MathUtils.lerp(0, 16, easeOutCubic(k)),
+          THREE.MathUtils.lerp(5.0, 10, k),
+          THREE.MathUtils.lerp(20, 32, k)
         );
-        camera.lookAt(0, 4, -2);
+        camera.lookAt(0, 4, -4);
       }
 
       // ----- Shield --------------------------------------------------------
@@ -986,6 +1066,410 @@ function makeSmokeTexture() {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 64);
   return new THREE.CanvasTexture(c);
+}
+
+// ============================================================================
+// Highway sign — pole + blue panel with white text
+// ============================================================================
+function buildHighwaySign(line1, line2) {
+  const g = new THREE.Group();
+  // Pole
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x6a6a6e, metalness: 0.7, roughness: 0.4 });
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 5, 12), poleMat);
+  pole.position.y = 2.5;
+  pole.castShadow = true;
+  g.add(pole);
+  // Reflective stripe near bottom of pole
+  const stripe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.1, 0.6, 12),
+    new THREE.MeshStandardMaterial({ color: 0xfff0c2, emissive: 0xd4af37, emissiveIntensity: 0.5 })
+  );
+  stripe.position.y = 0.6;
+  g.add(stripe);
+  // Sign panel (front face — blue with text)
+  const tex = makeRoadSignTexture(line1, line2);
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.8, 1.7),
+    new THREE.MeshStandardMaterial({
+      map: tex, roughness: 0.6, metalness: 0.05,
+      emissive: 0x223380, emissiveIntensity: 0.15,
+    })
+  );
+  panel.position.set(0, 4.2, 0);
+  panel.castShadow = true;
+  g.add(panel);
+  // Back face (gray steel)
+  const back = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.8, 1.7),
+    new THREE.MeshStandardMaterial({ color: 0x3a3a40, roughness: 0.7 })
+  );
+  back.position.set(0, 4.2, -0.02);
+  back.rotation.y = Math.PI;
+  g.add(back);
+  // Frame border
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x222 });
+  const fTop = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.08, 0.06), frameMat);
+  fTop.position.set(0, 5.06, 0); g.add(fTop);
+  const fBot = fTop.clone(); fBot.position.y = 3.34; g.add(fBot);
+  return g;
+}
+
+function makeRoadSignTexture(line1, line2) {
+  const c = document.createElement("canvas");
+  c.width = 760; c.height = 340;
+  const ctx = c.getContext("2d");
+  // Blue background (highway sign blue)
+  ctx.fillStyle = "#0d3a8a"; ctx.fillRect(0, 0, 760, 340);
+  // White inner border
+  ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 6;
+  ctx.strokeRect(14, 14, 732, 312);
+  // Line 1 — destination (white, big)
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 76px Space Grotesk, Arial Black, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(line1, 380, 140);
+  // Line 2 — secondary info (smaller)
+  ctx.font = "600 50px Inter, Arial, sans-serif";
+  ctx.fillStyle = "#d8e3ff";
+  ctx.fillText(line2, 380, 230);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+// ============================================================================
+// Military base gate — two pillars + crossbar + warning sign + lights
+// ============================================================================
+function buildMilitaryGate() {
+  const g = new THREE.Group();
+  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x8a8a92, roughness: 0.9 });
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: 0xd4af37, metalness: 0.8, roughness: 0.3,
+    emissive: 0x3a2a08, emissiveIntensity: 0.3,
+  });
+  for (const x of [-5.5, 5.5]) {
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.3, 6.5, 1.3), pillarMat);
+    pillar.position.set(x, 3.25, 0);
+    pillar.castShadow = true;
+    g.add(pillar);
+    // Gold trim band on pillar
+    const band = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.18, 1.36), trimMat);
+    band.position.set(x, 6, 0); g.add(band);
+    const band2 = band.clone(); band2.position.y = 0.6; g.add(band2);
+    // Light fixture on top
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.45, 0.9),
+      new THREE.MeshStandardMaterial({ color: 0xfff5d8, emissive: 0xffcc66, emissiveIntensity: 2.2 })
+    );
+    lamp.position.set(x, 6.7, 0); g.add(lamp);
+    // Point light spilling onto road
+    const pl = new THREE.PointLight(0xffcc66, 1.4, 14, 1.6);
+    pl.position.set(x, 6.5, 0); g.add(pl);
+  }
+  // Crossbar
+  const crossbar = new THREE.Mesh(new THREE.BoxGeometry(12, 0.9, 1.3), pillarMat);
+  crossbar.position.set(0, 6.95, 0);
+  crossbar.castShadow = true;
+  g.add(crossbar);
+  // Gold trim on crossbar bottom
+  const cTrim = new THREE.Mesh(new THREE.BoxGeometry(11.9, 0.1, 1.35), trimMat);
+  cTrim.position.set(0, 6.46, 0); g.add(cTrim);
+  // Warning sign on the crossbar
+  const signTex = makeGateSignTexture();
+  const signPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(9.5, 0.75),
+    new THREE.MeshStandardMaterial({
+      map: signTex,
+      emissive: 0x222200, emissiveIntensity: 0.25,
+    })
+  );
+  signPanel.position.set(0, 6.95, 0.66);
+  g.add(signPanel);
+  return g;
+}
+
+function makeGateSignTexture() {
+  const c = document.createElement("canvas");
+  c.width = 1400; c.height = 130;
+  const ctx = c.getContext("2d");
+  // Dark background
+  ctx.fillStyle = "#15151a"; ctx.fillRect(0, 0, 1400, 130);
+  // Gold border
+  ctx.strokeStyle = "#d4af37"; ctx.lineWidth = 4;
+  ctx.strokeRect(4, 4, 1392, 122);
+  // Text
+  ctx.fillStyle = "#d4af37";
+  ctx.font = "bold 58px Space Grotesk, Arial, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("⚠   RESTRICTED   ·   NATO PARTNER FACILITY   ·   NSF DEVESELU   ⚠", 700, 65);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ============================================================================
+// Watchtower — legs + platform + cabin + glowing window
+// ============================================================================
+function buildWatchtower() {
+  const g = new THREE.Group();
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x5a5a5e, roughness: 0.8 });
+  for (const x of [-1.1, 1.1]) {
+    for (const z of [-1.1, 1.1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 5.5, 0.18), legMat);
+      leg.position.set(x, 2.75, z);
+      g.add(leg);
+    }
+  }
+  // Cross-braces (X pattern on one face)
+  const brace = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, 0.08, 0.08),
+    new THREE.MeshStandardMaterial({ color: 0x444 })
+  );
+  brace.position.set(0, 2, 1.1);
+  brace.rotation.z = Math.PI / 6;
+  g.add(brace);
+  const brace2 = brace.clone();
+  brace2.rotation.z = -Math.PI / 6;
+  g.add(brace2);
+  // Platform
+  const platform = new THREE.Mesh(
+    new THREE.BoxGeometry(2.9, 0.22, 2.9),
+    new THREE.MeshStandardMaterial({ color: 0x404045, roughness: 0.9 })
+  );
+  platform.position.y = 5.6;
+  platform.castShadow = true;
+  g.add(platform);
+  // Cabin
+  const cabin = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 1.8, 2.2),
+    new THREE.MeshStandardMaterial({ color: 0x14223e, roughness: 0.4, metalness: 0.2 })
+  );
+  cabin.position.y = 6.6;
+  cabin.castShadow = true;
+  g.add(cabin);
+  // Roof (pyramidal)
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(1.7, 0.9, 4),
+    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.8 })
+  );
+  roof.position.y = 7.95;
+  roof.rotation.y = Math.PI / 4;
+  g.add(roof);
+  // Glowing window facing the road
+  const win = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.5, 0.65),
+    new THREE.MeshStandardMaterial({
+      color: 0xfff5d8, emissive: 0xffcc66, emissiveIntensity: 1.9,
+    })
+  );
+  win.position.set(0, 6.7, 1.11);
+  g.add(win);
+  // Soft light spilling from window
+  const winLight = new THREE.PointLight(0xffcc66, 0.7, 10, 2);
+  winLight.position.set(0, 6.7, 1.5);
+  g.add(winLight);
+  return g;
+}
+
+// ============================================================================
+// Fence segment — post + 3 horizontal cables
+// ============================================================================
+function buildFenceSegment() {
+  const g = new THREE.Group();
+  const post = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 2.6, 8),
+    new THREE.MeshStandardMaterial({ color: 0x444, roughness: 0.7 })
+  );
+  post.position.y = 1.3;
+  g.add(post);
+  for (let i = 0; i < 4; i++) {
+    const cable = new THREE.Mesh(
+      new THREE.BoxGeometry(3.5, 0.025, 0.025),
+      new THREE.MeshStandardMaterial({ color: 0x666 })
+    );
+    cable.position.set(-1.75, 0.4 + i * 0.65, 0);
+    g.add(cable);
+  }
+  return g;
+}
+
+// ============================================================================
+// Radar — concrete base, steel tower, rotating parabolic dish + sweep light
+// ============================================================================
+function buildRadar() {
+  const g = new THREE.Group();
+  // Concrete base
+  const base = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.6, 2.0, 0.7, 24),
+    new THREE.MeshStandardMaterial({ color: 0x5a5a60, roughness: 0.95 })
+  );
+  base.position.y = 0.35;
+  base.castShadow = true;
+  g.add(base);
+  // Steel tower
+  const tower = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.5, 5.2, 16),
+    new THREE.MeshStandardMaterial({ color: 0x8c8c92, metalness: 0.5, roughness: 0.45 })
+  );
+  tower.position.y = 3.3;
+  tower.castShadow = true;
+  g.add(tower);
+  // Tower bands
+  for (let i = 0; i < 3; i++) {
+    const band = new THREE.Mesh(
+      new THREE.TorusGeometry(0.42, 0.04, 8, 16),
+      new THREE.MeshStandardMaterial({ color: 0x444 })
+    );
+    band.rotation.x = Math.PI / 2;
+    band.position.y = 1.3 + i * 1.5;
+    g.add(band);
+  }
+  // Yoke (the rotating mount under the dish)
+  const yoke = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.9, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x666, metalness: 0.6, roughness: 0.4 })
+  );
+  yoke.position.y = 6.2;
+  g.add(yoke);
+
+  // Rotating dish assembly
+  const dishGroup = new THREE.Group();
+  dishGroup.position.y = 6.5;
+  g.add(dishGroup);
+
+  // Parabolic dish via lathe geometry
+  const dishPoints = [];
+  for (let i = 0; i <= 14; i++) {
+    const t = i / 14;
+    const x = t * 2.0;
+    const y = t * t * 0.55;
+    dishPoints.push(new THREE.Vector2(x, y));
+  }
+  const dishGeo = new THREE.LatheGeometry(dishPoints, 36);
+  const dish = new THREE.Mesh(
+    dishGeo,
+    new THREE.MeshStandardMaterial({
+      color: 0xdddee2, metalness: 0.4, roughness: 0.32,
+      side: THREE.DoubleSide,
+    })
+  );
+  dish.rotation.x = -Math.PI / 2.6; // tilt up
+  dish.castShadow = true;
+  dishGroup.add(dish);
+
+  // Cross-bracing on the dish (visible from front)
+  const braceMat = new THREE.MeshStandardMaterial({ color: 0x888, metalness: 0.4 });
+  for (const ang of [0, Math.PI / 2]) {
+    const brace = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.05, 0.05), braceMat);
+    brace.position.set(0, 0.8, 0.9);
+    brace.rotation.z = ang;
+    dishGroup.add(brace);
+  }
+
+  // Antenna feed (small cone in center of dish)
+  const feed = new THREE.Mesh(
+    new THREE.ConeGeometry(0.12, 0.7, 12),
+    new THREE.MeshStandardMaterial({ color: 0xaaa, metalness: 0.6 })
+  );
+  feed.position.set(0, 0.85, 0.55);
+  feed.rotation.x = Math.PI / 2;
+  dishGroup.add(feed);
+
+  // Red warning blip on dish edge
+  const blink = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1, 10, 10),
+    new THREE.MeshStandardMaterial({
+      color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 2.5,
+    })
+  );
+  blink.position.set(1.7, 0.35, 0.45);
+  dishGroup.add(blink);
+
+  // Sweep spotlight — pointing in dish's direction (cyan-green for radar feel)
+  const sweepLight = new THREE.SpotLight(0x33ff99, 1.8, 40, Math.PI / 9, 0.55, 1.4);
+  sweepLight.position.set(0, 0.6, 0.4);
+  dishGroup.add(sweepLight);
+  const sweepTarget = new THREE.Object3D();
+  sweepTarget.position.set(0, -3, 25);
+  dishGroup.add(sweepTarget);
+  sweepLight.target = sweepTarget;
+
+  // Translucent green sweep cone (visible volumetric effect)
+  const sweepGeo = new THREE.ConeGeometry(2.2, 8, 24, 1, true);
+  const sweepMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+    uniforms: {},
+    vertexShader: `
+      varying vec3 vPos;
+      void main() {
+        vPos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vPos;
+      void main() {
+        float a = smoothstep(8.0, 0.0, vPos.y) * 0.22;
+        gl_FragColor = vec4(0.2, 1.0, 0.5, a);
+      }
+    `,
+  });
+  const sweepCone = new THREE.Mesh(sweepGeo, sweepMat);
+  sweepCone.position.set(0, -4, 4);
+  sweepCone.rotation.x = -Math.PI / 2;
+  dishGroup.add(sweepCone);
+
+  g.userData.dishGroup = dishGroup;
+  g.userData.blink = blink;
+  g.userData.sweepLight = sweepLight;
+  return g;
+}
+
+// ============================================================================
+// Small antenna — companion tower with blinking light
+// ============================================================================
+function buildAntenna() {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 0.5, 1.0),
+    new THREE.MeshStandardMaterial({ color: 0x5a5a60, roughness: 0.9 })
+  );
+  base.position.y = 0.25;
+  g.add(base);
+  // Lattice tower (3 stacked pyramids)
+  for (let i = 0; i < 3; i++) {
+    const seg = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18 - i * 0.04, 0.26 - i * 0.04, 2, 6),
+      new THREE.MeshStandardMaterial({ color: 0x888, metalness: 0.4, roughness: 0.5 })
+    );
+    seg.position.y = 1.5 + i * 2;
+    g.add(seg);
+  }
+  // Antenna rods
+  for (let j = 0; j < 4; j++) {
+    const rod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, 1.6, 6),
+      new THREE.MeshStandardMaterial({ color: 0xaaa })
+    );
+    rod.position.y = 7.5;
+    rod.position.x = Math.sin(j) * 0.1;
+    g.add(rod);
+  }
+  // Red blink at top
+  const blink = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 10, 10),
+    new THREE.MeshStandardMaterial({
+      color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 1.4,
+    })
+  );
+  blink.position.y = 8.3;
+  g.add(blink);
+  g.userData.blink = blink;
+  return g;
 }
 
 // ============================================================================
