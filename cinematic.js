@@ -5,7 +5,9 @@
 // de 500vh înălțime, cu o etapă "sticky" pin-uită la 100vh.
 // ============================================================================
 
-import * as THREE from "three";
+// Direct URL imports (work without importmap, so older Safari is happy).
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { RoundedBoxGeometry } from "https://unpkg.com/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 const reduceMotion =
   window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -45,7 +47,9 @@ function initCinematic() {
     alpha: false,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Cap pixelRatio more aggressively to fight choppy playback on high-DPI
+  // displays (Retina Macs render 4x the pixels otherwise).
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.2 : 1.5));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // Boost exposure for an overall brighter image (was 1.05).
@@ -111,33 +115,45 @@ function initCinematic() {
     scene.add(edge);
   }
 
-  // Road dashes (center, dashed) — span full journey
-  for (let z = -440; z < 20; z += 7) {
-    const dash = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.18, 3.2),
-      new THREE.MeshStandardMaterial({ color: 0xfff5d8, roughness: 0.6, emissive: 0x554400, emissiveIntensity: 0.25 })
-    );
-    dash.rotation.x = -Math.PI / 2;
-    dash.position.set(0, 0.025, z);
-    scene.add(dash);
+  // Road dashes (center, dashed) — single InstancedMesh for performance.
+  {
+    const dashZs = [];
+    for (let z = -440; z < 20; z += 7) dashZs.push(z);
+    const dashGeo = new THREE.PlaneGeometry(0.18, 3.2);
+    const dashMat = new THREE.MeshStandardMaterial({
+      color: 0xfff5d8, roughness: 0.6,
+      emissive: 0x554400, emissiveIntensity: 0.25,
+    });
+    const dashMesh = new THREE.InstancedMesh(dashGeo, dashMat, dashZs.length);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+    for (let i = 0; i < dashZs.length; i++) {
+      m.compose(new THREE.Vector3(0, 0.025, dashZs[i]), q, new THREE.Vector3(1, 1, 1));
+      dashMesh.setMatrixAt(i, m);
+    }
+    dashMesh.instanceMatrix.needsUpdate = true;
+    scene.add(dashMesh);
   }
 
-  // Reflective roadside posts
-  for (let z = -420; z < 10; z += 11) {
-    for (const x of [-6.3, 6.3]) {
-      const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 1.0, 8),
-        new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 })
-      );
-      post.position.set(x, 0.5, z);
-      scene.add(post);
-      const ref = new THREE.Mesh(
-        new THREE.SphereGeometry(0.1, 8, 8),
-        new THREE.MeshStandardMaterial({ color: 0xd4af37, emissive: 0xd4af37, emissiveIntensity: 0.9 })
-      );
-      ref.position.set(x, 0.95, z);
-      scene.add(ref);
+  // Roadside posts — InstancedMesh, posts only. Removed the gold reflector
+  // spheres (they were reading as floating yellow particles in the air).
+  {
+    const postCount = Math.floor((420 + 10) / 11) * 2;
+    const postGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.0, 6);
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x333, roughness: 0.75 });
+    const postMesh = new THREE.InstancedMesh(postGeo, postMat, postCount);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    let i = 0;
+    for (let z = -420; z < 10; z += 11) {
+      for (const x of [-6.3, 6.3]) {
+        m.compose(new THREE.Vector3(x, 0.5, z), q, new THREE.Vector3(1, 1, 1));
+        postMesh.setMatrixAt(i, m);
+        i++;
+      }
     }
+    postMesh.instanceMatrix.needsUpdate = true;
+    scene.add(postMesh);
   }
 
   // ===== ROAD SIGN — DEVESELU ============================================
@@ -145,6 +161,14 @@ function initCinematic() {
   sign.position.set(7.5, 0, -110);
   sign.rotation.y = -Math.PI / 9;
   scene.add(sign);
+
+  // ===== BILLBOARD — NEVAL IMPEX contact info ==========================
+  // Placed early on the road so it's visible mid-journey. Has its own
+  // flood-light illuminating the panel.
+  const billboard = buildBillboard();
+  billboard.position.set(-9, 0, -75);
+  billboard.rotation.y = Math.PI / 7;     // angled toward the road
+  scene.add(billboard);
 
   // ===== MILITARY BASE ===================================================
   // Apron — the asphalt platform that the base sits on (extends past the road)
@@ -324,28 +348,28 @@ function initCinematic() {
   // Procedurally seeded so the same skyline appears every time the page loads.
   const skylineSeed = 73;
   const rand = mulberry32(skylineSeed);
-  // Layout: rows on both sides at z = -200..-50, x = ±(45..90).
-  // Two rows per side for layered depth.
+  // Layout: rows on both sides at z = -200..-50, pushed FURTHER from the
+  // road so window-grid Points don't visually overlap the central camera
+  // frame (they were reading as "floating particles" before).
   const skylinePlacements = [];
-  for (let z = -210; z <= -45; z += 9 + Math.floor(rand() * 4)) {
+  for (let z = -210; z <= -45; z += 16 + Math.floor(rand() * 6)) {
     for (const side of [-1, 1]) {
-      // Front row of tall buildings (closer to road)
       skylinePlacements.push({
-        x: side * (42 + rand() * 14),
+        x: side * (62 + rand() * 18),
         z: z + (rand() - 0.5) * 6,
-        h: 22 + rand() * 38,        // 22-60m height
-        w: 4 + rand() * 5,
-        d: 4 + rand() * 5,
+        h: 26 + rand() * 36,
+        w: 5 + rand() * 6,
+        d: 5 + rand() * 6,
         tint: 0x14 + Math.floor(rand() * 0x12),
       });
-      // Back row — taller, further away
-      if (rand() > 0.35) {
+      // Back row — taller, even further away
+      if (rand() > 0.5) {
         skylinePlacements.push({
-          x: side * (62 + rand() * 22),
+          x: side * (95 + rand() * 25),
           z: z + (rand() - 0.5) * 8,
-          h: 28 + rand() * 42,      // 28-70m height
-          w: 5 + rand() * 6,
-          d: 5 + rand() * 6,
+          h: 34 + rand() * 38,
+          w: 6 + rand() * 6,
+          d: 6 + rand() * 6,
           tint: 0x10 + Math.floor(rand() * 0x10),
         });
       }
@@ -668,7 +692,7 @@ function buildTruck(isMobile) {
     clearcoatRoughness: 0.18,
     reflectivity: 0.45,
   });
-  const trailer = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.8, 7), trailerMat);
+  const trailer = new THREE.Mesh(new RoundedBoxGeometry(2.6, 2.8, 7, 4, 0.08), trailerMat);
   trailer.position.set(0, 1.95, -2.0);
   trailer.castShadow = !isMobile;
   trailer.receiveShadow = !isMobile;
@@ -763,23 +787,8 @@ function buildTruck(isMobile) {
     g.add(chev);
   }
 
-  // ----- Marker lights along the trailer roof line (orange clearance) ----
-  const markerMat = new THREE.MeshStandardMaterial({
-    color: 0xffa040, emissive: 0xff8020, emissiveIntensity: 1.4, roughness: 0.3,
-  });
-  for (let mz = -4.8; mz <= 0.6; mz += 1.35) {
-    for (const mx of [-1.3, 1.3]) {
-      const mk = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), markerMat);
-      mk.position.set(mx, 3.18, mz);
-      g.add(mk);
-    }
-  }
-  // Front cab roof marker lights (5 across the top of the cab)
-  for (let i = -2; i <= 2; i++) {
-    const mk = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), markerMat);
-    mk.position.set(i * 0.5, 3.32, 2.4);
-    g.add(mk);
-  }
+  // (Removed orange clearance marker lights on roof — too many small
+  // dots reading as floating particles in the cinematic.)
 
   // ----- Fender flares + mud flaps (rubber behind each axle pair) --------
   const mudMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.95 });
@@ -836,20 +845,23 @@ function buildTruck(isMobile) {
     clearcoatRoughness: 0.08,
     reflectivity: 0.55,
   });
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.45, 2.1), cabMat);
+  const cab = new THREE.Mesh(new RoundedBoxGeometry(2.5, 2.45, 2.1, 4, 0.18), cabMat);
   cab.position.set(0, 1.75, 2.4);
   cab.castShadow = !isMobile;
   g.add(cab);
 
   // Cab roof (slimmer)
-  const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.35, 1.95), cabMat);
+  const cabRoof = new THREE.Mesh(new RoundedBoxGeometry(2.35, 0.35, 1.95, 3, 0.08), cabMat);
   cabRoof.position.set(0, 3.13, 2.4);
   g.add(cabRoof);
 
-  // Roof aerodynamic spoiler
+  // Roof aerodynamic spoiler — rounded for a slick wind-deflector look
   const spoiler = new THREE.Mesh(
-    new THREE.BoxGeometry(2.2, 0.6, 1.0),
-    new THREE.MeshStandardMaterial({ color: 0x1d2c4a, roughness: 0.3, metalness: 0.4 })
+    new RoundedBoxGeometry(2.2, 0.6, 1.0, 4, 0.18),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x1d2c4a, roughness: 0.32, metalness: 0.05,
+      clearcoat: 0.95, clearcoatRoughness: 0.1,
+    })
   );
   spoiler.position.set(0, 3.5, 2.0);
   g.add(spoiler);
@@ -881,7 +893,7 @@ function buildTruck(isMobile) {
   }
 
   // Hood
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.05, 1.5), cabMat);
+  const hood = new THREE.Mesh(new RoundedBoxGeometry(2.5, 1.05, 1.5, 4, 0.16), cabMat);
   hood.position.set(0, 1.05, 3.65);
   hood.castShadow = !isMobile;
   g.add(hood);
@@ -907,10 +919,13 @@ function buildTruck(isMobile) {
     g.add(bar);
   }
 
-  // Bumper
+  // Bumper — chrome-finished rounded bar
   const bumper = new THREE.Mesh(
-    new THREE.BoxGeometry(2.55, 0.42, 0.38),
-    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.4, metalness: 0.5 })
+    new RoundedBoxGeometry(2.55, 0.42, 0.38, 3, 0.1),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x2a2a2e, roughness: 0.32, metalness: 0.85,
+      clearcoat: 0.6, clearcoatRoughness: 0.18,
+    })
   );
   bumper.position.set(0, 0.42, 4.52);
   g.add(bumper);
@@ -976,38 +991,109 @@ function buildTruck(isMobile) {
   plate.position.set(0, 0.62, 4.541);
   g.add(plate);
 
-  // ----- Wheels (8 — front + 6 trailer/drive) ----------------------------
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.85 });
-  const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.46, 24);
-  const rimMat = new THREE.MeshStandardMaterial({
-    color: 0xb8b8c0, metalness: 0.75, roughness: 0.3,
+  // ----- Wheels (8 — front + 6 trailer/drive) — much more accurate -------
+  // Each wheel is a Group containing: tire (with subtle tread bumps), rim
+  // hub, 5 spokes, central nut. The whole group rotates together so spokes
+  // visibly spin.
+  const tireMat = new THREE.MeshPhysicalMaterial({
+    color: 0x0c0c0e, roughness: 0.95, metalness: 0.0,
+    clearcoat: 0.15, clearcoatRoughness: 0.6,
   });
-  const rimGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.48, 16);
+  const rimMat = new THREE.MeshPhysicalMaterial({
+    color: 0xb0b3b8, metalness: 0.85, roughness: 0.32,
+    clearcoat: 0.5, clearcoatRoughness: 0.2,
+  });
+  const nutMat = new THREE.MeshStandardMaterial({ color: 0x444, metalness: 0.7, roughness: 0.4 });
+  const spokeMat = new THREE.MeshStandardMaterial({ color: 0x888, metalness: 0.7, roughness: 0.4 });
+  const sidewallMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: 0.9 });
   const wheels = [];
   const zPositions = [3.6, 0.6, -1.5, -3.8];
+  function buildWheel() {
+    const wheelG = new THREE.Group();
+    // Outer tire (slightly squashed torus + cylinder for the contact face)
+    const tireOuter = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.6, 0.6, 0.42, 28),
+      tireMat
+    );
+    tireOuter.castShadow = !isMobile;
+    wheelG.add(tireOuter);
+    // Tire sidewall rims (slightly darker rings)
+    for (const dx of [-0.22, 0.22]) {
+      const side = new THREE.Mesh(
+        new THREE.TorusGeometry(0.58, 0.02, 6, 28),
+        sidewallMat
+      );
+      side.rotation.y = Math.PI / 2;
+      side.position.x = dx;
+      wheelG.add(side);
+    }
+    // Tire tread bumps (12 small dark cylinders evenly around the circumference)
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const bump = new THREE.Mesh(
+        new THREE.BoxGeometry(0.45, 0.08, 0.14),
+        sidewallMat
+      );
+      bump.position.set(0, Math.sin(a) * 0.6, Math.cos(a) * 0.6);
+      bump.rotation.x = a;
+      wheelG.add(bump);
+    }
+    // Hub (rim plate)
+    for (const dx of [-0.215, 0.215]) {
+      const hub = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.42, 0.02, 24),
+        rimMat
+      );
+      hub.position.x = dx;
+      wheelG.add(hub);
+      // Central nut
+      const nut = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 0.04, 6),
+        nutMat
+      );
+      nut.position.x = dx + (dx > 0 ? 0.02 : -0.02);
+      wheelG.add(nut);
+      // 5 spokes
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const spoke = new THREE.Mesh(
+          new THREE.BoxGeometry(0.04, 0.32, 0.07),
+          spokeMat
+        );
+        spoke.position.set(
+          dx + (dx > 0 ? 0.012 : -0.012),
+          Math.sin(a) * 0.21,
+          Math.cos(a) * 0.21
+        );
+        spoke.rotation.x = a;
+        wheelG.add(spoke);
+      }
+      // 5 lug bolts on outer face
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 + Math.PI / 5;
+        const lug = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.025, 0.025, 0.03, 6),
+          nutMat
+        );
+        lug.position.set(
+          dx + (dx > 0 ? 0.02 : -0.02),
+          Math.sin(a) * 0.3,
+          Math.cos(a) * 0.3
+        );
+        lug.rotation.z = Math.PI / 2;
+        wheelG.add(lug);
+      }
+    }
+    // Orient so cylinder axis points along X (wheel rolls around its X axis)
+    wheelG.rotation.z = Math.PI / 2;
+    return wheelG;
+  }
   for (const z of zPositions) {
     for (const x of [-1.3, 1.3]) {
-      const w = new THREE.Mesh(wheelGeo, wheelMat);
-      w.rotation.z = Math.PI / 2;
+      const w = buildWheel();
       w.position.set(x, 0.6, z);
-      w.castShadow = !isMobile;
       g.add(w);
       wheels.push(w);
-      // Rim (separate so it spins with wheel)
-      const rim = new THREE.Mesh(rimGeo, rimMat);
-      rim.rotation.z = Math.PI / 2;
-      rim.position.copy(w.position);
-      g.add(rim);
-      // Lug bolts (simple)
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        const lug = new THREE.Mesh(
-          new THREE.SphereGeometry(0.04, 6, 6),
-          new THREE.MeshStandardMaterial({ color: 0x666, metalness: 0.8 })
-        );
-        lug.position.set(x + Math.sign(x) * 0.005, 0.6 + Math.sin(a) * 0.15, z + Math.cos(a) * 0.15);
-        g.add(lug);
-      }
     }
   }
 
@@ -2428,6 +2514,140 @@ function mulberry32(a) {
 // ============================================================================
 // Skyscraper — tall building with random window pattern (city silhouette)
 // ============================================================================
+// ============================================================================
+// Roadside billboard — large vertical sign with NEVAL contact info,
+// supported by two steel poles, lit by 3 flood lights.
+// ============================================================================
+function buildBillboard() {
+  const g = new THREE.Group();
+  // Two support poles
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x6a6a6e, metalness: 0.6, roughness: 0.45 });
+  for (const dx of [-2.6, 2.6]) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 7.5, 12), poleMat);
+    pole.position.set(dx, 3.75, 0);
+    pole.castShadow = true;
+    g.add(pole);
+  }
+  // Cross-beam at the back of the panel
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.18, 0.18), poleMat);
+  beam.position.set(0, 6.5, -0.18);
+  g.add(beam);
+
+  // Back frame plate
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(6.5, 3.6, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 })
+  );
+  back.position.set(0, 6.5, -0.08);
+  g.add(back);
+
+  // Front-face billboard panel with NEVAL branding
+  const tex = makeBillboardTexture();
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(6.4, 3.5),
+    new THREE.MeshStandardMaterial({
+      map: tex,
+      roughness: 0.55,
+      metalness: 0.05,
+      emissive: 0x161616,
+      emissiveIntensity: 0.35,
+    })
+  );
+  panel.position.set(0, 6.5, 0.01);
+  panel.castShadow = true;
+  g.add(panel);
+
+  // Gold frame around the panel
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: 0xd4af37, metalness: 0.75, roughness: 0.3,
+    emissive: 0x3a2a08, emissiveIntensity: 0.4,
+  });
+  const fTop = new THREE.Mesh(new THREE.BoxGeometry(6.7, 0.15, 0.18), frameMat);
+  fTop.position.set(0, 8.35, 0.02);
+  g.add(fTop);
+  const fBot = fTop.clone();
+  fBot.position.y = 4.65;
+  g.add(fBot);
+  const fLeft = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.5, 0.18), frameMat);
+  fLeft.position.set(-3.27, 6.5, 0.02);
+  g.add(fLeft);
+  const fRight = fLeft.clone();
+  fRight.position.x = 3.27;
+  g.add(fRight);
+
+  // Three flood lights mounted above the panel, pointing down at it
+  for (let i = -1; i <= 1; i++) {
+    // Lamp housing
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.22, 0.32),
+      new THREE.MeshStandardMaterial({ color: 0x444, metalness: 0.6 })
+    );
+    lamp.position.set(i * 2.2, 8.7, 0.7);
+    g.add(lamp);
+    // Light cone (visual)
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(0.16, 0.4, 8, 1, true),
+      new THREE.MeshStandardMaterial({
+        color: 0xfff5d8, emissive: 0xffeebb, emissiveIntensity: 1.5,
+        roughness: 0.3,
+      })
+    );
+    cone.position.set(i * 2.2, 8.5, 0.85);
+    cone.rotation.x = -Math.PI / 1.6;
+    g.add(cone);
+    // Actual SpotLight illuminating the panel
+    const sl = new THREE.SpotLight(0xfff0d0, 1.8, 8, Math.PI / 4, 0.6, 1.0);
+    sl.position.set(i * 2.2, 8.7, 0.85);
+    sl.target.position.set(i * 2.2, 6.0, 0.0);
+    g.add(sl, sl.target);
+  }
+
+  return g;
+}
+
+function makeBillboardTexture() {
+  const c = document.createElement("canvas");
+  c.width = 1280;
+  c.height = 720;
+  const ctx = c.getContext("2d");
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, 720);
+  bg.addColorStop(0, "#142a52");
+  bg.addColorStop(1, "#0a1432");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 1280, 720);
+  // Gold accent bar at top
+  ctx.fillStyle = "#d4af37";
+  ctx.fillRect(40, 40, 1200, 6);
+  ctx.fillRect(40, 678, 1200, 6);
+  // Brand
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 160px Space Grotesk, Arial Black, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("NEVAL IMPEX", 640, 200);
+  // Subtitle
+  ctx.fillStyle = "#e6c258";
+  ctx.font = "600 56px Inter, Arial, sans-serif";
+  ctx.fillText("DEFENSE SUPPLY  ·  NATO PARTNER", 640, 310);
+  // Phone — big and clear
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 92px Space Grotesk, Arial Black, sans-serif";
+  ctx.fillText("+40 766 732 908", 640, 450);
+  // Email
+  ctx.fillStyle = "#d4af37";
+  ctx.font = "600 64px Inter, Arial, sans-serif";
+  ctx.fillText("office@nevalimpex.com", 640, 540);
+  // Codes
+  ctx.fillStyle = "#9aa6bd";
+  ctx.font = "500 36px JetBrains Mono, Consolas, monospace";
+  ctx.fillText("SAM.gov YY8LMLPTE4C5  ·  CAGE 1HAZL", 640, 625);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 function buildSkyscraper(w, h, d, tint, rand) {
   const g = new THREE.Group();
 
@@ -2460,8 +2680,8 @@ function buildSkyscraper(w, h, d, tint, rand) {
   // Window grid — small bright dots representing lit windows.
   // Use random sparseness so each building looks unique. Group all the
   // lit windows of one building into a single Points mesh for performance.
-  const winCols = Math.max(3, Math.floor(w * 1.7));
-  const winRows = Math.max(8, Math.floor(h * 0.6));
+  const winCols = Math.max(3, Math.floor(w * 1.0));
+  const winRows = Math.max(6, Math.floor(h * 0.4));
   const winSpacingX = w * 0.85 / winCols;
   const winSpacingY = (h - 1.2) / winRows;
   const litPositions = [];
@@ -2471,7 +2691,7 @@ function buildSkyscraper(w, h, d, tint, rand) {
   for (const face of [-1, 1]) {
     for (let row = 0; row < winRows; row++) {
       for (let col = 0; col < winCols; col++) {
-        if (rand() > 0.55) continue;          // only ~45% of windows are lit
+        if (rand() > 0.45) continue;
         const px = -w * 0.4 + col * winSpacingX + winSpacingX / 2;
         const py = 0.9 + row * winSpacingY + winSpacingY / 2;
         const pz = face * (d / 2 + 0.02);
@@ -2491,7 +2711,7 @@ function buildSkyscraper(w, h, d, tint, rand) {
     const spacing2 = d * 0.85 / cols2;
     for (let row = 0; row < winRows; row++) {
       for (let col = 0; col < cols2; col++) {
-        if (rand() > 0.5) continue;
+        if (rand() > 0.45) continue;
         const px = face * (w / 2 + 0.02);
         const py = 0.9 + row * winSpacingY + winSpacingY / 2;
         const pz = -d * 0.4 + col * spacing2 + spacing2 / 2;
@@ -2510,11 +2730,11 @@ function buildSkyscraper(w, h, d, tint, rand) {
     winGeo.setAttribute("position", new THREE.Float32BufferAttribute(litPositions, 3));
     winGeo.setAttribute("color", new THREE.Float32BufferAttribute(litColors, 3));
     const winMat = new THREE.PointsMaterial({
-      size: 0.32,
+      size: 0.7,
       vertexColors: true,
       transparent: true,
-      opacity: 0.95,
-      blending: THREE.AdditiveBlending,
+      opacity: 1.0,
+      blending: THREE.NormalBlending,    // additive made them look like floating dust
       depthWrite: false,
       sizeAttenuation: true,
     });
