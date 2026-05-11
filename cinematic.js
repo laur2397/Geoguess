@@ -431,9 +431,9 @@ function initCinematic() {
   shield.lookAt(0, 4.4, 30);
   scene.add(shield);
 
-  // ===== EXPLOSION PARTICLES ==============================================
-  const particles = createParticleSystem(PARTICLE_COUNT);
-  scene.add(particles.mesh);
+  // (No 10k particle explosion — removed per user feedback. Impact now
+  // uses only the ground shockwave ring + 3D shockwave sphere + a brief
+  // shield glow boost. Cleaner and doesn't litter the road or the logo.)
 
   // Shockwave ring on ground
   const shock = new THREE.Mesh(
@@ -545,110 +545,77 @@ function initCinematic() {
       radar.userData.sweepLight.intensity = inBase ? 2.5 : 1.4;
       antenna.userData.blink.material.emissiveIntensity = 0.8 + Math.sin(t * 4 + 1) * 0.7;
 
-      // ----- Camera choreography ------------------------------------------
-      // Phase 1: 0–13% wide establishing
-      // Phase 2: 13–32% side-rear tracking on open road
-      // Phase 3: 32–46% slow-down + DEVESELU sign reveal (camera tilts toward sign)
-      // Phase 4: 46–60% truck approaches base gate (low-angle hero shot)
-      // Phase 5: 60–75% inside base — wide shot showing truck + radar
-      // Phase 6: 75–84% head-on climax with shield
-      // Phase 7: 84–100% aftermath pull-back
-      if (p < 0.13) {
-        const k = p / 0.13;
-        camera.position.set(
-          THREE.MathUtils.lerp(18, 11, k),
-          THREE.MathUtils.lerp(13, 6, k),
-          THREE.MathUtils.lerp(-130, truck.position.z - 8, k)
-        );
-        camera.lookAt(truck.position.x, 2.0, truck.position.z + 5);
-      } else if (p < 0.32) {
-        const k = (p - 0.13) / 0.19;
-        camera.position.set(
-          THREE.MathUtils.lerp(11, 8, k),
-          THREE.MathUtils.lerp(6, 4, k),
-          truck.position.z - 7
-        );
-        camera.lookAt(truck.position.x, 2.2, truck.position.z + 8);
-      } else if (p < 0.46) {
-        // Sign reveal — camera slows + pans toward sign briefly
-        const k = (p - 0.32) / 0.14;
-        const signZ = -110;
-        const lookZ = THREE.MathUtils.lerp(truck.position.z + 8, signZ, easeInOut(k * 0.6));
-        camera.position.set(
-          THREE.MathUtils.lerp(8, 9.5, k),
-          THREE.MathUtils.lerp(4, 4.5, k),
-          THREE.MathUtils.lerp(truck.position.z - 7, truck.position.z - 5, k)
-        );
-        camera.lookAt(THREE.MathUtils.lerp(0, 6, k * 0.5), 3, lookZ);
-      } else if (p < 0.60) {
-        // Approaching base — low-angle hero shot framing truck + gate
-        const k = (p - 0.46) / 0.14;
-        camera.position.set(
-          THREE.MathUtils.lerp(9.5, 7, k),
-          THREE.MathUtils.lerp(4.5, 2.6, k),
-          THREE.MathUtils.lerp(truck.position.z - 5, -40, k)
-        );
-        camera.lookAt(0, 3, THREE.MathUtils.lerp(-30, -55, k));
-      } else if (p < 0.75) {
-        // Inside the base — wide shot with radar prominent on the left
-        const k = (p - 0.60) / 0.15;
-        camera.position.set(
-          THREE.MathUtils.lerp(12, 15, k),
-          THREE.MathUtils.lerp(5, 6.5, k),
-          THREE.MathUtils.lerp(-35, -15, k)
-        );
-        camera.lookAt(THREE.MathUtils.lerp(-2, -6, k), 4, THREE.MathUtils.lerp(-25, -18, k));
-      } else if (p < 0.84) {
-        // Head-on climax with shield
-        const k = (p - 0.75) / 0.09;
-        camera.position.set(
-          THREE.MathUtils.lerp(15, 0, k),
-          THREE.MathUtils.lerp(6.5, 5.0, k),
-          THREE.MathUtils.lerp(-15, 20, k)
-        );
-        camera.lookAt(THREE.MathUtils.lerp(-6, 0, k), 4, THREE.MathUtils.lerp(-18, 0, k));
-      } else {
-        // Aftermath pull-back
-        const k = (p - 0.84) / 0.16;
-        camera.position.set(
-          THREE.MathUtils.lerp(0, 16, easeOutCubic(k)),
-          THREE.MathUtils.lerp(5.0, 10, k),
-          THREE.MathUtils.lerp(20, 32, k)
-        );
-        camera.lookAt(0, 4, -4);
-      }
+      // ----- Camera — continuous smooth orbit around the truck ------------
+      // No phase jumps. The camera always keeps the truck in frame; only
+      // the orbit angle / distance / height vary smoothly with scroll
+      // progress, plus a gentle "shoulder" pull-back at the very end.
+      const tp = truck.position;
+      // Orbit angle (radians, around Y axis, measured from behind the truck).
+      // Starts behind-right (-0.35rad), sweeps to the side (+0.55rad), then
+      // smoothly comes back to almost-behind for the climax + a small wide
+      // pull-back at the very end.
+      const camAngle =
+        -0.35 + 0.95 * Math.sin(p * Math.PI * 0.85);
+      // Distance from truck — closer in the middle, wider at start and end.
+      const camDist =
+        p < 0.86
+          ? 11 - 3 * Math.sin(p * Math.PI)          // 11 -> ~8 -> 11
+          : 11 + (p - 0.86) / 0.14 * 16;            // pull back to ~27
+      // Height — rises gradually so the city skyline stays visible.
+      const camH =
+        p < 0.86
+          ? 4 + 1.5 * Math.sin(p * Math.PI)
+          : 5.5 + (p - 0.86) / 0.14 * 6;
+
+      // Position the camera in truck-local orbital coordinates. The truck
+      // faces +Z (it's driving toward larger Z values). "Behind" means
+      // -Z from truck.
+      camera.position.set(
+        tp.x + Math.sin(camAngle) * camDist,
+        camH,
+        tp.z - Math.cos(camAngle) * camDist
+      );
+
+      // Look at a point a little ahead of the truck so the road and the
+      // base read clearly. At the very end, drift the look-at point
+      // slightly so the brand reveal centres cleanly.
+      const lookAhead = p < 0.86 ? 6 : 6 + (p - 0.86) / 0.14 * 4;
+      const lookY = 2.6 + (p < 0.86 ? 0 : (p - 0.86) / 0.14 * 1.4);
+      camera.lookAt(tp.x, lookY, tp.z + lookAhead);
 
       // ----- Shield --------------------------------------------------------
       shield.rotation.y += dt * 0.35;
       const glow = 0.4 + Math.pow(truckP, 1.8) * 1.6;
       shield.userData.rim.material.emissiveIntensity = glow;
       shield.userData.star.material.emissiveIntensity = glow * 0.7;
-      shield.userData.halo.material.uniforms.intensity.value = 0.4 + truckP * 2.0;
+      shield.userData.halo.material.uniforms.intensity.value = 0.25 + truckP * 0.9;
       shieldLight.intensity = truckP * 4;
 
       // ----- Impact trigger -----------------------------------------------
+      // ----- Impact trigger -----------------------------------------------
+      // No more 10k-particle explosion (was leaving debris all over the
+      // road and clouding the brand-reveal). Instead: a clean energy
+      // flash on the shield + ground shockwave + brief camera shake.
       if (p > 0.80 && !impacted) {
         impacted = true;
         impactT = t;
-        fireParticles(particles, new THREE.Vector3(0, 3.8, -2));
         shock.material.opacity = 1;
         shock.scale.setScalar(1);
-        sphereShock.material.opacity = 0.9;
+        sphereShock.material.opacity = 0.85;
         sphereShock.scale.setScalar(1);
       }
       if (impacted) {
         const age = t - impactT;
-        // Ground shockwave
-        shock.scale.setScalar(1 + age * 32);
-        shock.material.opacity = Math.max(0, 1 - age * 0.7);
+        // Ground shockwave — single clean ring expanding outward, fades
+        // before the brand reveal so it doesn't visually compete.
+        shock.scale.setScalar(1 + age * 30);
+        shock.material.opacity = Math.max(0, 1 - age * 1.4);
         // 3D shockwave sphere
-        sphereShock.scale.setScalar(1 + age * 20);
-        sphereShock.material.opacity = Math.max(0, 0.9 - age * 1.2);
-        // Particles
-        updateParticles(particles, dt);
-        // Shake
-        if (age < 0.45) {
-          const k = (0.45 - age) * 0.8;
+        sphereShock.scale.setScalar(1 + age * 8);
+        sphereShock.material.opacity = Math.max(0, 0.75 - age * 2.4);
+        // Shake (subtle)
+        if (age < 0.35) {
+          const k = (0.35 - age) * 0.55;
           camera.position.x += (Math.random() - 0.5) * k;
           camera.position.y += (Math.random() - 0.5) * k * 0.7;
         }
@@ -692,9 +659,14 @@ function initCinematic() {
 function buildTruck(isMobile) {
   const g = new THREE.Group();
 
-  // ----- Trailer (white box with gold trim) -------------------------------
-  const trailerMat = new THREE.MeshStandardMaterial({
-    color: 0xe8eaee, roughness: 0.34, metalness: 0.28,
+  // ----- Trailer (white box with clearcoat paint + gold trim) ------------
+  const trailerMat = new THREE.MeshPhysicalMaterial({
+    color: 0xeef1f6,
+    roughness: 0.42,
+    metalness: 0.05,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.18,
+    reflectivity: 0.45,
   });
   const trailer = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.8, 7), trailerMat);
   trailer.position.set(0, 1.95, -2.0);
@@ -757,9 +729,112 @@ function buildTruck(isMobile) {
   handle2.position.x = 0.6;
   g.add(handle2);
 
-  // ----- Cab --------------------------------------------------------------
-  const cabMat = new THREE.MeshStandardMaterial({
-    color: 0x14223e, roughness: 0.3, metalness: 0.45,
+  // Tail lights — red emissive panels on each side of the rear door
+  const tailMat = new THREE.MeshStandardMaterial({
+    color: 0xff4040, emissive: 0xff2020, emissiveIntensity: 1.6, roughness: 0.3,
+  });
+  for (const tx of [-1.1, 1.1]) {
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.08), tailMat);
+    tail.position.set(tx, 0.85, -5.53);
+    g.add(tail);
+  }
+  // Tail-light reverse strips (white emissive)
+  const reverseMat = new THREE.MeshStandardMaterial({
+    color: 0xfffff0, emissive: 0xffffe0, emissiveIntensity: 0.8, roughness: 0.3,
+  });
+  for (const tx of [-1.1, 1.1]) {
+    const rev = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.08), reverseMat);
+    rev.position.set(tx, 0.55, -5.53);
+    g.add(rev);
+  }
+  // Rear hazard reflector strip (mid-height) — chevron pattern
+  for (let i = 0; i < 8; i++) {
+    const chev = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.28, 0.18),
+      new THREE.MeshStandardMaterial({
+        color: i % 2 ? 0xd4af37 : 0x1a1a1a,
+        emissive: i % 2 ? 0x3a2a08 : 0x000000,
+        emissiveIntensity: 0.3,
+        roughness: 0.5,
+      })
+    );
+    chev.position.set(-1.0 + i * 0.28, 0.3, -5.521);
+    chev.rotation.y = Math.PI;
+    g.add(chev);
+  }
+
+  // ----- Marker lights along the trailer roof line (orange clearance) ----
+  const markerMat = new THREE.MeshStandardMaterial({
+    color: 0xffa040, emissive: 0xff8020, emissiveIntensity: 1.4, roughness: 0.3,
+  });
+  for (let mz = -4.8; mz <= 0.6; mz += 1.35) {
+    for (const mx of [-1.3, 1.3]) {
+      const mk = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), markerMat);
+      mk.position.set(mx, 3.18, mz);
+      g.add(mk);
+    }
+  }
+  // Front cab roof marker lights (5 across the top of the cab)
+  for (let i = -2; i <= 2; i++) {
+    const mk = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), markerMat);
+    mk.position.set(i * 0.5, 3.32, 2.4);
+    g.add(mk);
+  }
+
+  // ----- Fender flares + mud flaps (rubber behind each axle pair) --------
+  const mudMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.95 });
+  const fenderMat = new THREE.MeshStandardMaterial({ color: 0x1a1f2a, roughness: 0.6, metalness: 0.2 });
+  const fenderZ = [3.6, -1.5, -3.8]; // skipping mid-axle for clearance
+  for (const fz of fenderZ) {
+    for (const fx of [-1.3, 1.3]) {
+      // Fender flare arching over the wheel
+      const flare = new THREE.Mesh(
+        new THREE.TorusGeometry(0.78, 0.12, 8, 14, Math.PI),
+        fenderMat
+      );
+      flare.position.set(fx, 1.05, fz);
+      flare.rotation.y = Math.PI / 2;
+      flare.rotation.x = Math.PI;
+      g.add(flare);
+      // Mud flap behind rear wheels only
+      if (fz < 0) {
+        const flap = new THREE.Mesh(new THREE.PlaneGeometry(0.65, 0.55), mudMat);
+        flap.position.set(fx, 0.55, fz - 0.6);
+        flap.rotation.y = Math.PI / 2;
+        g.add(flap);
+      }
+    }
+  }
+
+  // ----- Fuel tank cylinder on the side of the cab/trailer --------------
+  for (const fx of [-1.42, 1.42]) {
+    const fuelTank = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.32, 0.32, 1.1, 16),
+      new THREE.MeshStandardMaterial({
+        color: 0x888, metalness: 0.85, roughness: 0.3,
+      })
+    );
+    fuelTank.position.set(fx, 0.85, 1.0);
+    fuelTank.rotation.z = Math.PI / 2;
+    g.add(fuelTank);
+    // End caps
+    const fuelCap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.32, 0.32, 0.04, 16),
+      new THREE.MeshStandardMaterial({ color: 0x444 })
+    );
+    fuelCap.position.set(fx + Math.sign(fx) * 0.55, 0.85, 1.0);
+    fuelCap.rotation.z = Math.PI / 2;
+    g.add(fuelCap);
+  }
+
+  // ----- Cab (premium navy paint with strong clearcoat) -------------------
+  const cabMat = new THREE.MeshPhysicalMaterial({
+    color: 0x162842,
+    roughness: 0.42,
+    metalness: 0.08,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.08,
+    reflectivity: 0.55,
   });
   const cab = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.45, 2.1), cabMat);
   cab.position.set(0, 1.75, 2.4);
@@ -1074,9 +1149,10 @@ function buildShield() {
   textRing.position.z = 0.22;
   g.add(textRing);
 
-  // Halo glow plane behind
+  // Halo glow plane behind — smaller + softer so it doesn't dominate
+  // the brand-reveal frame at the end of the cinematic.
   const halo = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
+    new THREE.PlaneGeometry(11, 11),
     new THREE.ShaderMaterial({
       transparent: true,
       blending: THREE.AdditiveBlending,
