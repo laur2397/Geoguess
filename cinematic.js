@@ -5,26 +5,23 @@
 // de 500vh înălțime, cu o etapă "sticky" pin-uită la 100vh.
 // ============================================================================
 
-// Direct URL import (works on any browser supporting ES modules — Safari 11+,
-// Chrome 61+, Firefox 60+). Avoids importmap, which requires Safari 16.4+.
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import * as THREE from "three";
 
 const reduceMotion =
   window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const runwayEl = document.getElementById("top");
+const cinematicEl = document.getElementById("cinematic");
 const canvas = document.getElementById("cinematic-canvas");
-const ovHint = document.getElementById("ov-hint");
-const ovBefore = document.getElementById("ov-before");
-const ovSign = document.getElementById("ov-sign");
-const ovRadar = document.getElementById("ov-radar");
-const ovReveal = document.getElementById("ov-reveal");
+const overlayBefore = document.getElementById("cinematic-before");
+const overlayReveal = document.getElementById("cinematic-reveal");
+const scrollHint = document.getElementById("cinematic-hint");
 
-if (!canvas || !runwayEl) {
+if (!canvas || !cinematicEl) {
   // Nothing to do
 } else if (reduceMotion) {
   // Reduced-motion users: skip animation, show reveal statically
-  if (ovReveal) { ovReveal.style.opacity = "1"; ovReveal.classList.add("is-visible"); }
+  if (overlayReveal) overlayReveal.classList.add("is-visible");
+  cinematicEl.classList.add("is-static");
 } else {
   initCinematic();
 }
@@ -144,6 +141,31 @@ function initCinematic() {
   scene.add(sign);
 
   // ===== MILITARY BASE ===================================================
+  // Apron — the asphalt platform that the base sits on (extends past the road)
+  const apron = new THREE.Mesh(
+    new THREE.PlaneGeometry(80, 70),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a20, roughness: 0.92, metalness: 0.05 })
+  );
+  apron.rotation.x = -Math.PI / 2;
+  apron.position.set(0, 0.005, -30);
+  apron.receiveShadow = !isMobile;
+  scene.add(apron);
+
+  // Paint lines on the apron (parking grid)
+  for (let z = -55; z <= -10; z += 6) {
+    for (let xi = -3; xi <= 3; xi++) {
+      if (xi >= -1 && xi <= 1) continue; // skip center where road is
+      const ln = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.12, 4),
+        new THREE.MeshStandardMaterial({ color: 0xd9c98a, roughness: 0.7, emissive: 0x332200, emissiveIntensity: 0.1 })
+      );
+      ln.rotation.x = -Math.PI / 2;
+      ln.position.set(xi * 5, 0.015, z);
+      scene.add(ln);
+    }
+  }
+
+  // ----- Main gate ---------------------------------------------------------
   const gate = buildMilitaryGate();
   gate.position.set(0, 0, -58);
   scene.add(gate);
@@ -154,27 +176,161 @@ function initCinematic() {
   scene.add(tower1);
   const tower2 = buildWatchtower();
   tower2.position.set(13, 0, -52);
-  tower2.rotation.y = Math.PI; // face inward
+  tower2.rotation.y = Math.PI;
   scene.add(tower2);
 
-  // Fence on both sides of the road, extending from the gate forward
-  for (let z = -55; z < -8; z += 3.5) {
+  // Guard cabin to one side of the gate (small kiosk)
+  const guardCabin = buildGuardCabin();
+  guardCabin.position.set(8.5, 0, -56);
+  scene.add(guardCabin);
+
+  // ----- Perimeter fence (long stretches on both sides) -------------------
+  for (let z = -90; z < -8; z += 3.5) {
     for (const x of [-9, 9]) {
       const fence = buildFenceSegment();
       fence.position.set(x, 0, z);
       scene.add(fence);
     }
   }
+  // Perpendicular fence at the back of the base (closing the perimeter)
+  for (let x = -28; x <= 28; x += 3.5) {
+    const fence = buildFenceSegment();
+    fence.rotation.y = Math.PI / 2;
+    fence.position.set(x, 0, 5);
+    scene.add(fence);
+  }
+  // Side perimeter fences (deep stretches running off into the distance)
+  for (let z = 5; z < 30; z += 3.5) {
+    for (const x of [-28, 28]) {
+      const fence = buildFenceSegment();
+      fence.position.set(x, 0, z);
+      scene.add(fence);
+    }
+  }
 
-  // ===== RADAR (rotating, with sweep light) ==============================
+  // ----- Buildings (warehouses + admin block) -----------------------------
+  // Big warehouse — left side, behind the radar
+  const warehouseL = buildWarehouse(18, 8, 22, 0x404249);
+  warehouseL.position.set(-22, 0, -10);
+  scene.add(warehouseL);
+  // Smaller warehouse — right side, behind the antenna
+  const warehouseR = buildWarehouse(14, 7, 18, 0x444a52);
+  warehouseR.position.set(22, 0, -5);
+  scene.add(warehouseR);
+  // Admin block — three-story office, gold trim, lots of windows
+  const admin = buildAdminBlock();
+  admin.position.set(-22, 0, 12);
+  scene.add(admin);
+  // Storage shed — small utility building near road
+  const shed = buildWarehouse(6, 4, 8, 0x2a2c32);
+  shed.position.set(20, 0, 14);
+  scene.add(shed);
+
+  // ----- Shipping containers (stacks of 4 colored containers) -------------
+  const containerColors = [0xa12727, 0x276ba1, 0x2b7a45, 0xa17827, 0x6b6b6b, 0x274aa1];
+  // Stack near warehouse on the left
+  for (let row = 0; row < 3; row++) {
+    for (let level = 0; level < 2; level++) {
+      const c = buildContainer(containerColors[(row * 2 + level) % containerColors.length]);
+      c.position.set(-12 + row * 3.05, level * 2.6, 18);
+      scene.add(c);
+    }
+  }
+  // Stack on the right
+  for (let row = 0; row < 4; row++) {
+    const c = buildContainer(containerColors[(row + 2) % containerColors.length]);
+    c.position.set(8 + row * 3.05, 0, 22);
+    scene.add(c);
+  }
+  for (let row = 0; row < 2; row++) {
+    const c = buildContainer(containerColors[(row + 1) % containerColors.length]);
+    c.position.set(8 + row * 3.05, 2.6, 22);
+    scene.add(c);
+  }
+
+  // ----- Tall light masts illuminating the base ---------------------------
+  const lightPositions = [
+    [-18, -45], [18, -45],
+    [-18, -20], [18, -20],
+    [-18,   5], [18,   5],
+    [  0, -40], [  0, -10],
+  ];
+  for (const [x, z] of lightPositions) {
+    const mast = buildLightMast();
+    mast.position.set(x, 0, z);
+    scene.add(mast);
+  }
+
+  // ----- Fuel/utility tanks (cylindrical, by warehouse) -------------------
+  for (let i = 0; i < 3; i++) {
+    const tank = buildFuelTank();
+    tank.position.set(-30 - (i % 2) * 3, 0, -2 + i * 4);
+    scene.add(tank);
+  }
+
+  // ----- Background helipad circle ----------------------------------------
+  const helipad = new THREE.Mesh(
+    new THREE.CircleGeometry(5, 48),
+    new THREE.MeshStandardMaterial({ color: 0x222226, roughness: 0.9 })
+  );
+  helipad.rotation.x = -Math.PI / 2;
+  helipad.position.set(28, 0.02, -15);
+  scene.add(helipad);
+  // H painted on helipad
+  const helipadH = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.4, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0xfff5d8, roughness: 0.6, emissive: 0x332200, emissiveIntensity: 0.2 })
+  );
+  helipadH.rotation.x = -Math.PI / 2;
+  helipadH.position.set(28, 0.03, -15);
+  scene.add(helipadH);
+  const helipadH2 = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.3, 1.8),
+    new THREE.MeshStandardMaterial({ color: 0xfff5d8, roughness: 0.6 })
+  );
+  helipadH2.rotation.x = -Math.PI / 2;
+  helipadH2.position.set(28, 0.03, -15);
+  scene.add(helipadH2);
+  for (let dx of [-1.0, 1.0]) {
+    const vBar = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.3, 1.8),
+      new THREE.MeshStandardMaterial({ color: 0xfff5d8, roughness: 0.6 })
+    );
+    vBar.rotation.x = -Math.PI / 2;
+    vBar.position.set(28 + dx, 0.03, -15);
+    scene.add(vBar);
+  }
+
+  // ----- Distant industrial buildings (silhouettes for depth) -------------
+  for (const [x, z, w, h, d] of [
+    [-45, 25, 14, 9, 16],
+    [-30, 35, 10, 6, 12],
+    [ 30, 40, 18, 11, 14],
+    [ 50, 28, 12, 7, 10],
+    [-58,  5, 8, 5, 8],
+  ]) {
+    const b = buildWarehouse(w, h, d, 0x282a32);
+    b.position.set(x, 0, z);
+    scene.add(b);
+  }
+
+  // ===== RADAR (large, complex installation) ==============================
   const radar = buildRadar();
-  radar.position.set(-15, 0, -28);
+  radar.position.set(-16, 0, -28);
   scene.add(radar);
 
-  // Secondary smaller radar / antenna on the other side for balance
+  // Secondary phased-array radar (rectangular flat panel on a tower)
+  const phasedArray = buildPhasedArray();
+  phasedArray.position.set(15, 0, -22);
+  scene.add(phasedArray);
+
+  // Tertiary tall antenna mast
   const antenna = buildAntenna();
-  antenna.position.set(14, 0, -22);
+  antenna.position.set(-30, 0, -38);
   scene.add(antenna);
+  const antenna2 = buildAntenna();
+  antenna2.position.set(26, 0, 5);
+  scene.add(antenna2);
 
   // Distant stars
   const starsGeo = new THREE.BufferGeometry();
@@ -279,11 +435,9 @@ function initCinematic() {
   resize();
 
   function progress() {
-    // Use scrollY relative to the runway height (works even on Safari without
-    // sticky support). The runway is a position:relative empty div with a
-    // tall fixed height; we use it purely as a scroll progress source.
-    const total = Math.max(1, runwayEl.offsetHeight - window.innerHeight);
-    return Math.max(0, Math.min(1, window.scrollY / total));
+    const r = cinematicEl.getBoundingClientRect();
+    const total = Math.max(1, cinematicEl.offsetHeight - window.innerHeight);
+    return Math.max(0, Math.min(1, -r.top / total));
   }
 
   // Pause when offscreen or hidden
@@ -311,9 +465,9 @@ function initCinematic() {
     const t = clock.getElapsedTime();
     const p = progress();
 
-    // Render whenever we're somewhere in the runway. Past the end (p=1),
-    // we still render so the reveal stays visible while the user lingers.
-    const onScreen = true;
+    // Skip rendering if cinematic is fully off-screen (perf)
+    const r = cinematicEl.getBoundingClientRect();
+    const onScreen = r.bottom > -50 && r.top < window.innerHeight + 50;
 
     if (onScreen) {
       // ----- Truck motion --------------------------------------------------
@@ -452,31 +606,19 @@ function initCinematic() {
       updateSmoke(smoke, dt, truckP);
 
       // ----- Overlay opacities --------------------------------------------
-      if (ovHint) {
-        ovHint.style.opacity = p < 0.05 ? 1 : Math.max(0, 1 - p * 12);
+      if (overlayBefore) {
+        const fadeIn = Math.min(1, p * 6);
+        const fadeOut = Math.max(0, 1 - Math.max(0, (p - 0.55) / 0.15));
+        overlayBefore.style.opacity = fadeIn * fadeOut;
       }
-      if (ovBefore) {
-        // Visible from 0.04 to 0.28
-        const o = clamp01(Math.min(p / 0.08, (0.32 - p) / 0.08));
-        ovBefore.style.opacity = o;
-      }
-      if (ovSign) {
-        // Visible during sign reveal (~0.30–0.46)
-        const o = clamp01(Math.min((p - 0.30) / 0.06, (0.50 - p) / 0.06));
-        ovSign.style.opacity = o;
-        ovSign.classList.toggle("is-visible", o > 0.5);
-      }
-      if (ovRadar) {
-        // Visible inside the base (~0.58–0.78)
-        const o = clamp01(Math.min((p - 0.58) / 0.06, (0.82 - p) / 0.06));
-        ovRadar.style.opacity = o;
-        ovRadar.classList.toggle("is-visible", o > 0.5);
-      }
-      if (ovReveal) {
+      if (overlayReveal) {
         const rp = p < 0.84 ? 0 : Math.min(1, (p - 0.84) / 0.10);
-        ovReveal.style.opacity = rp;
-        ovReveal.style.transform = `translateY(${(1 - rp) * 26}px) scale(${0.985 + rp * 0.015})`;
-        ovReveal.classList.toggle("is-visible", rp > 0.05);
+        overlayReveal.style.opacity = rp;
+        overlayReveal.style.transform = `translateY(${(1 - rp) * 26}px) scale(${0.985 + rp * 0.015})`;
+        overlayReveal.classList.toggle("is-visible", rp > 0.05);
+      }
+      if (scrollHint) {
+        scrollHint.style.opacity = p < 0.05 ? 1 : Math.max(0, 1 - p * 12);
       }
 
       renderer.render(scene, camera);
@@ -1316,104 +1458,323 @@ function buildFenceSegment() {
 // ============================================================================
 function buildRadar() {
   const g = new THREE.Group();
-  // Concrete base
-  const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.6, 2.0, 0.7, 24),
-    new THREE.MeshStandardMaterial({ color: 0x5a5a60, roughness: 0.95 })
-  );
-  base.position.y = 0.35;
-  base.castShadow = true;
-  g.add(base);
-  // Steel tower
-  const tower = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.5, 5.2, 16),
-    new THREE.MeshStandardMaterial({ color: 0x8c8c92, metalness: 0.5, roughness: 0.45 })
-  );
-  tower.position.y = 3.3;
-  tower.castShadow = true;
-  g.add(tower);
-  // Tower bands
-  for (let i = 0; i < 3; i++) {
-    const band = new THREE.Mesh(
-      new THREE.TorusGeometry(0.42, 0.04, 8, 16),
-      new THREE.MeshStandardMaterial({ color: 0x444 })
-    );
-    band.rotation.x = Math.PI / 2;
-    band.position.y = 1.3 + i * 1.5;
-    g.add(band);
-  }
-  // Yoke (the rotating mount under the dish)
-  const yoke = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.9, 0.5),
-    new THREE.MeshStandardMaterial({ color: 0x666, metalness: 0.6, roughness: 0.4 })
-  );
-  yoke.position.y = 6.2;
-  g.add(yoke);
 
-  // Rotating dish assembly
+  // ---- Concrete foundation pad (wide, two-tier) -------------------------
+  const padOuter = new THREE.Mesh(
+    new THREE.CylinderGeometry(3.6, 3.8, 0.3, 32),
+    new THREE.MeshStandardMaterial({ color: 0x4a4a52, roughness: 0.95 })
+  );
+  padOuter.position.y = 0.15;
+  padOuter.receiveShadow = true;
+  g.add(padOuter);
+
+  const padInner = new THREE.Mesh(
+    new THREE.CylinderGeometry(2.4, 2.5, 0.6, 24),
+    new THREE.MeshStandardMaterial({ color: 0x5a5a62, roughness: 0.92 })
+  );
+  padInner.position.y = 0.4;
+  padInner.castShadow = true;
+  g.add(padInner);
+
+  // Concrete bollards around the pad
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const bollard = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.22, 0.7, 12),
+      new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, emissive: 0x3a2a08, emissiveIntensity: 0.2 })
+    );
+    bollard.position.set(Math.cos(a) * 3.5, 0.35, Math.sin(a) * 3.5);
+    g.add(bollard);
+  }
+
+  // ---- Lattice tower (4 vertical legs + diagonal bracing) ----------------
+  const towerHeight = 7.5;
+  const towerBaseR = 0.85;
+  const towerTopR = 0.55;
+  const legMat = new THREE.MeshStandardMaterial({
+    color: 0x8c8c92, metalness: 0.55, roughness: 0.45,
+  });
+  // Cylindrical core (so the lattice looks like it has a hub)
+  const core = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.25, towerHeight, 12),
+    legMat
+  );
+  core.position.y = 0.7 + towerHeight / 2;
+  core.castShadow = true;
+  g.add(core);
+
+  // 4 lattice legs (tapering inward toward top)
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const xBot = Math.cos(a) * towerBaseR;
+    const zBot = Math.sin(a) * towerBaseR;
+    const xTop = Math.cos(a) * towerTopR;
+    const zTop = Math.sin(a) * towerTopR;
+    const dx = xTop - xBot, dz = zTop - zBot;
+    const legLen = Math.sqrt(dx * dx + dz * dz + towerHeight * towerHeight);
+    const leg = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.10, legLen, 8),
+      legMat
+    );
+    leg.position.set((xBot + xTop) / 2, 0.7 + towerHeight / 2, (zBot + zTop) / 2);
+    // Rotate the cylinder to align with leg direction
+    leg.lookAt(new THREE.Vector3(xTop, 0.7 + towerHeight, zTop));
+    leg.rotateX(Math.PI / 2);
+    leg.castShadow = true;
+    g.add(leg);
+
+    // Horizontal cross-bars between adjacent legs at 4 heights
+    const nextA = ((i + 1) / 4) * Math.PI * 2 + Math.PI / 4;
+    for (let h = 0; h < 5; h++) {
+      const t = h / 4;
+      const rr = towerBaseR + (towerTopR - towerBaseR) * t;
+      const y = 0.7 + towerHeight * t;
+      const x1 = Math.cos(a) * rr;
+      const z1 = Math.sin(a) * rr;
+      const x2 = Math.cos(nextA) * rr;
+      const z2 = Math.sin(nextA) * rr;
+      const len = Math.sqrt((x2 - x1) ** 2 + (z2 - z1) ** 2);
+      const cross = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, len, 6),
+        legMat
+      );
+      cross.position.set((x1 + x2) / 2, y, (z1 + z2) / 2);
+      cross.lookAt(new THREE.Vector3(x2, y, z2));
+      cross.rotateX(Math.PI / 2);
+      g.add(cross);
+    }
+    // Diagonal bracing per face
+    for (let h = 0; h < 4; h++) {
+      const t1 = h / 4, t2 = (h + 1) / 4;
+      const rr1 = towerBaseR + (towerTopR - towerBaseR) * t1;
+      const rr2 = towerBaseR + (towerTopR - towerBaseR) * t2;
+      const y1 = 0.7 + towerHeight * t1;
+      const y2 = 0.7 + towerHeight * t2;
+      const x1 = Math.cos(a) * rr1;
+      const z1 = Math.sin(a) * rr1;
+      const x2 = Math.cos(nextA) * rr2;
+      const z2 = Math.sin(nextA) * rr2;
+      const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2 + (z2 - z1) ** 2);
+      const diag = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, len, 6),
+        legMat
+      );
+      diag.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
+      diag.lookAt(new THREE.Vector3(x2, y2, z2));
+      diag.rotateX(Math.PI / 2);
+      g.add(diag);
+    }
+  }
+
+  // ---- Maintenance platforms (2 levels) ---------------------------------
+  for (const y of [3.5, 6.5]) {
+    const platform = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.3, 1.3, 0.08, 24),
+      new THREE.MeshStandardMaterial({ color: 0x666, metalness: 0.5, roughness: 0.6 })
+    );
+    platform.position.y = y;
+    platform.castShadow = true;
+    g.add(platform);
+    // Railing around platform
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 0.8, 6),
+        new THREE.MeshStandardMaterial({ color: 0x999 })
+      );
+      post.position.set(Math.cos(a) * 1.28, y + 0.44, Math.sin(a) * 1.28);
+      g.add(post);
+    }
+    // Top railing (torus)
+    const rail = new THREE.Mesh(
+      new THREE.TorusGeometry(1.28, 0.025, 6, 32),
+      new THREE.MeshStandardMaterial({ color: 0x999 })
+    );
+    rail.rotation.x = Math.PI / 2;
+    rail.position.y = y + 0.84;
+    g.add(rail);
+  }
+
+  // ---- Service ladder running up the tower ------------------------------
+  for (let h = 0; h < 14; h++) {
+    const rung = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.04, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0x777 })
+    );
+    rung.position.set(0, 0.9 + h * 0.55, towerBaseR + 0.1);
+    g.add(rung);
+  }
+  // Ladder rails
+  for (const dx of [-0.25, 0.25]) {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(0.05, 8.5, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x777 })
+    );
+    rail.position.set(dx, 4.5, towerBaseR + 0.1);
+    g.add(rail);
+  }
+
+  // ---- Cable trays running from tower base to ground -------------------
+  for (let i = 0; i < 3; i++) {
+    const cable = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x222 })
+    );
+    cable.position.set(-0.5 + i * 0.5, 0.4, towerBaseR + 0.2);
+    cable.rotation.x = Math.PI / 2;
+    g.add(cable);
+  }
+  // Junction box at the base
+  const jBox = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.4, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.5, roughness: 0.4 })
+  );
+  jBox.position.set(0, 1.0, towerBaseR + 0.5);
+  g.add(jBox);
+
+  // ---- Yoke / pedestal at the top (the rotating-azimuth mount) ----------
+  const yokeBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.6, 0.7, 0.4, 16),
+    new THREE.MeshStandardMaterial({ color: 0x444, metalness: 0.5 })
+  );
+  yokeBase.position.y = 8.45;
+  g.add(yokeBase);
+
+  // ---- Rotating dish assembly -------------------------------------------
   const dishGroup = new THREE.Group();
-  dishGroup.position.y = 6.5;
+  dishGroup.position.y = 8.85;
   g.add(dishGroup);
 
-  // Parabolic dish via lathe geometry
+  // Yoke arms (two side arms holding the dish at elevation pivot)
+  for (const dx of [-1.1, 1.1]) {
+    const arm = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 1.5, 0.4),
+      new THREE.MeshStandardMaterial({ color: 0x6e6e76, metalness: 0.55, roughness: 0.4 })
+    );
+    arm.position.set(dx, 0.6, 0);
+    arm.castShadow = true;
+    dishGroup.add(arm);
+  }
+  // Elevation pivot cross-bar between arms
+  const pivot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.18, 2.5, 16),
+    new THREE.MeshStandardMaterial({ color: 0x888, metalness: 0.7, roughness: 0.3 })
+  );
+  pivot.rotation.z = Math.PI / 2;
+  pivot.position.y = 1.2;
+  dishGroup.add(pivot);
+
+  // Parabolic dish (lathe geometry, deeper curve, bigger)
   const dishPoints = [];
-  for (let i = 0; i <= 14; i++) {
-    const t = i / 14;
-    const x = t * 2.0;
-    const y = t * t * 0.55;
+  for (let i = 0; i <= 18; i++) {
+    const t = i / 18;
+    const x = t * 2.4;
+    const y = t * t * 0.7;
     dishPoints.push(new THREE.Vector2(x, y));
   }
-  const dishGeo = new THREE.LatheGeometry(dishPoints, 36);
+  const dishGeo = new THREE.LatheGeometry(dishPoints, 48);
   const dish = new THREE.Mesh(
     dishGeo,
     new THREE.MeshStandardMaterial({
-      color: 0xdddee2, metalness: 0.4, roughness: 0.32,
+      color: 0xe4e6ea, metalness: 0.45, roughness: 0.3,
       side: THREE.DoubleSide,
     })
   );
-  dish.rotation.x = -Math.PI / 2.6; // tilt up
+  dish.rotation.x = -Math.PI / 2.4;
+  dish.position.y = 1.2;
   dish.castShadow = true;
   dishGroup.add(dish);
 
-  // Cross-bracing on the dish (visible from front)
-  const braceMat = new THREE.MeshStandardMaterial({ color: 0x888, metalness: 0.4 });
-  for (const ang of [0, Math.PI / 2]) {
-    const brace = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.05, 0.05), braceMat);
-    brace.position.set(0, 0.8, 0.9);
-    brace.rotation.z = ang;
-    dishGroup.add(brace);
+  // Concentric rings on the back of the dish (structural ribs)
+  for (let r = 0.6; r < 2.2; r += 0.5) {
+    const rib = new THREE.Mesh(
+      new THREE.TorusGeometry(r, 0.04, 6, 32),
+      new THREE.MeshStandardMaterial({ color: 0xb0b2b8, metalness: 0.6, roughness: 0.4 })
+    );
+    rib.rotation.x = -Math.PI / 2.4;
+    rib.position.y = 1.2 + 0.7 * (r / 2.4) * (r / 2.4);
+    dishGroup.add(rib);
   }
 
-  // Antenna feed (small cone in center of dish)
-  const feed = new THREE.Mesh(
-    new THREE.ConeGeometry(0.12, 0.7, 12),
-    new THREE.MeshStandardMaterial({ color: 0xaaa, metalness: 0.6 })
-  );
-  feed.position.set(0, 0.85, 0.55);
-  feed.rotation.x = Math.PI / 2;
-  dishGroup.add(feed);
+  // Radial bracing struts behind the dish
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const strut = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.04, 2.2),
+      new THREE.MeshStandardMaterial({ color: 0xb0b2b8, metalness: 0.5 })
+    );
+    strut.position.set(0, 1.2 - 0.2, 0);
+    strut.rotation.z = a;
+    strut.rotation.x = -Math.PI / 2.4;
+    dishGroup.add(strut);
+  }
 
-  // Red warning blip on dish edge
+  // Antenna feed assembly (tripod + waveguide horn at focal point)
+  const feedTripodMat = new THREE.MeshStandardMaterial({ color: 0xaaa, metalness: 0.6, roughness: 0.4 });
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    const arm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
+      feedTripodMat
+    );
+    arm.position.set(Math.cos(a) * 0.8, 1.6, Math.sin(a) * 0.8 + 0.7);
+    arm.lookAt(0, 1.2 + 1.4, 1.6);
+    arm.rotateX(Math.PI / 2);
+    dishGroup.add(arm);
+  }
+  // Waveguide horn (rectangular)
+  const horn = new THREE.Mesh(
+    new THREE.BoxGeometry(0.35, 0.35, 0.6),
+    new THREE.MeshStandardMaterial({ color: 0x999, metalness: 0.7, roughness: 0.3 })
+  );
+  horn.position.set(0, 1.2 + 1.3, 1.4);
+  dishGroup.add(horn);
+  const hornFlare = new THREE.Mesh(
+    new THREE.ConeGeometry(0.32, 0.4, 4, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x666, metalness: 0.7, side: THREE.DoubleSide })
+  );
+  hornFlare.position.set(0, 1.2 + 1.3, 1.85);
+  hornFlare.rotation.x = -Math.PI / 2;
+  hornFlare.rotation.y = Math.PI / 4;
+  dishGroup.add(hornFlare);
+
+  // Cabling from feed back to base of dish
+  for (let i = 0; i < 3; i++) {
+    const cab = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, 1.6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x222 })
+    );
+    cab.position.set(-0.05 + i * 0.05, 1.2 + 0.9, 1.0);
+    cab.lookAt(0, 1.2 + 0.2, 0);
+    cab.rotateX(Math.PI / 2);
+    dishGroup.add(cab);
+  }
+
+  // Red aviation warning lights (on dish edge + tower)
   const blink = new THREE.Mesh(
-    new THREE.SphereGeometry(0.1, 10, 10),
+    new THREE.SphereGeometry(0.12, 10, 10),
     new THREE.MeshStandardMaterial({
       color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 2.5,
     })
   );
-  blink.position.set(1.7, 0.35, 0.45);
+  blink.position.set(2.1, 1.2 - 0.4, 0.5);
   dishGroup.add(blink);
+  const blink2 = blink.clone();
+  blink2.position.set(-2.1, 1.2 - 0.4, 0.5);
+  dishGroup.add(blink2);
 
-  // Sweep spotlight — pointing in dish's direction (cyan-green for radar feel)
-  const sweepLight = new THREE.SpotLight(0x33ff99, 1.8, 40, Math.PI / 9, 0.55, 1.4);
-  sweepLight.position.set(0, 0.6, 0.4);
-  dishGroup.add(sweepLight);
-  const sweepTarget = new THREE.Object3D();
-  sweepTarget.position.set(0, -3, 25);
-  dishGroup.add(sweepTarget);
-  sweepLight.target = sweepTarget;
+  // Tower-mounted red aviation warning lights at 3 heights
+  for (const h of [2.5, 5.5]) {
+    const tl = new THREE.Mesh(
+      new THREE.SphereGeometry(0.09, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 1.4 })
+    );
+    tl.position.set(towerBaseR + 0.1, h, 0);
+    g.add(tl);
+  }
 
-  // Translucent green sweep cone (visible volumetric effect)
-  const sweepGeo = new THREE.ConeGeometry(2.2, 8, 24, 1, true);
+  // ---- Sweep volumetric cone (the radar "beam") -------------------------
+  const sweepGeo = new THREE.ConeGeometry(2.8, 12, 32, 1, true);
   const sweepMat = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -1430,19 +1791,472 @@ function buildRadar() {
     fragmentShader: `
       varying vec3 vPos;
       void main() {
-        float a = smoothstep(8.0, 0.0, vPos.y) * 0.22;
+        float a = smoothstep(12.0, 0.0, vPos.y) * 0.18;
         gl_FragColor = vec4(0.2, 1.0, 0.5, a);
       }
     `,
   });
   const sweepCone = new THREE.Mesh(sweepGeo, sweepMat);
-  sweepCone.position.set(0, -4, 4);
+  sweepCone.position.set(0, 1.2 - 5, 4);
   sweepCone.rotation.x = -Math.PI / 2;
   dishGroup.add(sweepCone);
+
+  // Sweep spotlight (cyan-green for radar feel)
+  const sweepLight = new THREE.SpotLight(0x33ff99, 1.8, 50, Math.PI / 9, 0.55, 1.4);
+  sweepLight.position.set(0, 1.2, 0.5);
+  dishGroup.add(sweepLight);
+  const sweepTarget = new THREE.Object3D();
+  sweepTarget.position.set(0, -4, 30);
+  dishGroup.add(sweepTarget);
+  sweepLight.target = sweepTarget;
 
   g.userData.dishGroup = dishGroup;
   g.userData.blink = blink;
   g.userData.sweepLight = sweepLight;
+  return g;
+}
+
+// ============================================================================
+// Warehouse — boxy industrial building with roof + windows + bay door
+// ============================================================================
+function buildWarehouse(w, h, d, color) {
+  const g = new THREE.Group();
+  // Main box
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.1 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  body.position.y = h / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  g.add(body);
+  // Slightly pitched roof line (a darker top band)
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 1.02, 0.4, d * 1.02),
+    new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.9 })
+  );
+  roof.position.y = h + 0.1;
+  g.add(roof);
+  // Vertical corrugated stripes (panels) on front and back faces
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0x1a1c20, roughness: 0.85 });
+  for (let x = -w / 2 + 0.6; x < w / 2; x += 1.2) {
+    for (const dz of [d / 2 + 0.01, -d / 2 - 0.01]) {
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, h - 0.4, 0.06),
+        stripeMat
+      );
+      stripe.position.set(x, h / 2 - 0.2, dz);
+      g.add(stripe);
+    }
+  }
+  // Roll-up bay door on front
+  const door = new THREE.Mesh(
+    new THREE.PlaneGeometry(Math.min(4, w * 0.5), Math.min(h * 0.7, 4)),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, metalness: 0.3, emissive: 0x3a2a08, emissiveIntensity: 0.15 })
+  );
+  door.position.set(0, Math.min(h * 0.7, 4) / 2, d / 2 + 0.011);
+  g.add(door);
+  // Door horizontal lines
+  for (let yy = 0.4; yy < Math.min(h * 0.7, 4); yy += 0.4) {
+    const dl = new THREE.Mesh(
+      new THREE.PlaneGeometry(Math.min(4, w * 0.5) - 0.1, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0x8a6a1a, roughness: 0.6 })
+    );
+    dl.position.set(0, yy, d / 2 + 0.012);
+    g.add(dl);
+  }
+  // Small window strip near roof
+  if (h > 5) {
+    const winStrip = new THREE.Mesh(
+      new THREE.PlaneGeometry(w * 0.85, 0.6),
+      new THREE.MeshStandardMaterial({
+        color: 0xffeebb, emissive: 0xffcc66, emissiveIntensity: 1.0,
+        transparent: true, opacity: 0.9,
+      })
+    );
+    winStrip.position.set(0, h - 0.9, d / 2 + 0.012);
+    g.add(winStrip);
+  }
+  return g;
+}
+
+// ============================================================================
+// Shipping container — colored 20ft container with corrugated sides
+// ============================================================================
+function buildContainer(color) {
+  const g = new THREE.Group();
+  // Body (2.4m x 2.6m x 6m approx)
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(2.9, 2.55, 5.9),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.3 })
+  );
+  body.position.y = 1.275;
+  body.castShadow = true;
+  g.add(body);
+  // Corrugated stripes on long sides
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0x000, roughness: 0.8 });
+  for (let z = -2.7; z < 2.7; z += 0.3) {
+    for (const dx of [1.451, -1.451]) {
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.02, 2.4, 0.04),
+        stripeMat
+      );
+      stripe.position.set(dx, 1.275, z);
+      g.add(stripe);
+    }
+  }
+  // Top edge band (darker)
+  const topBand = new THREE.Mesh(
+    new THREE.BoxGeometry(2.92, 0.1, 5.92),
+    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 })
+  );
+  topBand.position.y = 2.55;
+  g.add(topBand);
+  // Bottom rails (corner casts)
+  const botBand = topBand.clone();
+  botBand.position.y = 0.0;
+  g.add(botBand);
+  // Door details on one end
+  const doorPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.7, 2.3),
+    new THREE.MeshStandardMaterial({ color: color * 0.85, roughness: 0.5 })
+  );
+  doorPanel.position.set(0, 1.275, 2.961);
+  g.add(doorPanel);
+  // Door rods (2 vertical handles)
+  for (const dx of [-0.7, 0.7]) {
+    const rod = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.035, 2.0, 8),
+      new THREE.MeshStandardMaterial({ color: 0x222, metalness: 0.6 })
+    );
+    rod.position.set(dx, 1.275, 2.972);
+    g.add(rod);
+  }
+  return g;
+}
+
+// ============================================================================
+// Tall stadium-style light mast — pole + crossbar + 4 LED panels
+// ============================================================================
+function buildLightMast() {
+  const g = new THREE.Group();
+  // Concrete base
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 0.3, 0.7),
+    new THREE.MeshStandardMaterial({ color: 0x55555c, roughness: 0.9 })
+  );
+  base.position.y = 0.15;
+  g.add(base);
+  // Tapered pole
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.2, 9, 12),
+    new THREE.MeshStandardMaterial({ color: 0x7a7a82, metalness: 0.5, roughness: 0.5 })
+  );
+  pole.position.y = 4.8;
+  pole.castShadow = true;
+  g.add(pole);
+  // Crossbar at the top
+  const crossbar = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 0.16, 0.16),
+    new THREE.MeshStandardMaterial({ color: 0x6a6a72, metalness: 0.5, roughness: 0.5 })
+  );
+  crossbar.position.y = 9.2;
+  g.add(crossbar);
+  // 4 LED light panels on crossbar
+  for (let i = -1; i <= 1; i++) {
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.35, 0.18),
+      new THREE.MeshStandardMaterial({
+        color: 0xfff5d8, emissive: 0xffeebb, emissiveIntensity: 2.5,
+        roughness: 0.2,
+      })
+    );
+    panel.position.set(i * 0.65, 9.0, 0);
+    panel.rotation.x = -Math.PI / 5;
+    g.add(panel);
+  }
+  // Point light spilling onto the apron
+  const pl = new THREE.PointLight(0xffcc88, 0.6, 22, 1.6);
+  pl.position.y = 9.0;
+  g.add(pl);
+  return g;
+}
+
+// ============================================================================
+// Fuel/utility tank — horizontal cylindrical tank on supports
+// ============================================================================
+function buildFuelTank() {
+  const g = new THREE.Group();
+  // Tank body
+  const tankMat = new THREE.MeshStandardMaterial({
+    color: 0x9aa6bd, metalness: 0.6, roughness: 0.45,
+  });
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 3.0, 24), tankMat);
+  tank.rotation.z = Math.PI / 2;
+  tank.position.y = 1.2;
+  tank.castShadow = true;
+  g.add(tank);
+  // End caps (slightly darker)
+  for (const dx of [-1.5, 1.5]) {
+    const cap = new THREE.Mesh(
+      new THREE.SphereGeometry(0.9, 16, 12, 0, Math.PI, 0, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x7a8696, metalness: 0.55, roughness: 0.5 })
+    );
+    cap.position.set(dx, 1.2, 0);
+    cap.rotation.y = dx > 0 ? -Math.PI / 2 : Math.PI / 2;
+    g.add(cap);
+  }
+  // Saddle supports
+  for (const dx of [-1.0, 1.0]) {
+    const saddle = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 1.0, 1.0),
+      new THREE.MeshStandardMaterial({ color: 0x55555c, roughness: 0.9 })
+    );
+    saddle.position.set(dx, 0.5, 0);
+    g.add(saddle);
+  }
+  // Hazard stripe band around the tank
+  const stripe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.91, 0.91, 0.3, 24),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, emissive: 0x3a2a08, emissiveIntensity: 0.2 })
+  );
+  stripe.rotation.z = Math.PI / 2;
+  stripe.position.y = 1.2;
+  g.add(stripe);
+  // Pressure gauge / valve on top
+  const valve = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12, 0.12, 0.3, 12),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.6 })
+  );
+  valve.position.y = 2.25;
+  g.add(valve);
+  return g;
+}
+
+// ============================================================================
+// Admin block — three-story office building with rows of windows
+// ============================================================================
+function buildAdminBlock() {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x34363c, roughness: 0.7, metalness: 0.15 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(10, 9, 14), bodyMat);
+  body.position.y = 4.5;
+  body.castShadow = true;
+  g.add(body);
+  // Gold trim band at top
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(10.1, 0.25, 14.1),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.7, roughness: 0.4, emissive: 0x3a2a08, emissiveIntensity: 0.25 })
+  );
+  trim.position.y = 8.85;
+  g.add(trim);
+  // Window grid — 3 rows × multiple columns on each side face
+  const winMat = new THREE.MeshStandardMaterial({
+    color: 0xffeebb, emissive: 0xffcc66, emissiveIntensity: 1.2,
+    roughness: 0.2,
+  });
+  const winDimMat = new THREE.MeshStandardMaterial({
+    color: 0x222, roughness: 0.3, metalness: 0.5,
+  });
+  // Front face (z = +7.01)
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 6; col++) {
+      const lit = Math.random() > 0.4;
+      const w = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.0, 1.2),
+        lit ? winMat : winDimMat
+      );
+      w.position.set(-3.7 + col * 1.5, 2.0 + row * 2.5, 7.011);
+      g.add(w);
+    }
+  }
+  // Side face — narrower
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 4; col++) {
+      const lit = Math.random() > 0.5;
+      const w = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.0, 1.2),
+        lit ? winMat : winDimMat
+      );
+      w.position.set(5.011, 2.0 + row * 2.5, -3.5 + col * 2.3);
+      w.rotation.y = Math.PI / 2;
+      g.add(w);
+    }
+  }
+  // Entrance canopy
+  const canopy = new THREE.Mesh(
+    new THREE.BoxGeometry(3.5, 0.18, 1.2),
+    new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.6 })
+  );
+  canopy.position.set(0, 1.6, 7.6);
+  g.add(canopy);
+  // Entrance door (golden glow)
+  const entrance = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.2, 2.2),
+    new THREE.MeshStandardMaterial({ color: 0xffd88a, emissive: 0xffaa44, emissiveIntensity: 0.8 })
+  );
+  entrance.position.set(0, 1.2, 7.012);
+  g.add(entrance);
+  return g;
+}
+
+// ============================================================================
+// Guard cabin — small security kiosk near the gate
+// ============================================================================
+function buildGuardCabin() {
+  const g = new THREE.Group();
+  // Concrete plinth
+  const plinth = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, 0.3, 2.4),
+    new THREE.MeshStandardMaterial({ color: 0x44444a, roughness: 0.9 })
+  );
+  plinth.position.y = 0.15;
+  g.add(plinth);
+  // Cabin body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(2.2, 2.4, 2.0),
+    new THREE.MeshStandardMaterial({ color: 0x14223e, roughness: 0.5, metalness: 0.2 })
+  );
+  body.position.y = 1.5;
+  body.castShadow = true;
+  g.add(body);
+  // Roof overhang
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, 0.16, 2.4),
+    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.8 })
+  );
+  roof.position.y = 2.75;
+  g.add(roof);
+  // Window (large glowing pane)
+  const win = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.7, 1.0),
+    new THREE.MeshStandardMaterial({
+      color: 0xffeebb, emissive: 0xffcc66, emissiveIntensity: 1.5,
+      roughness: 0.2,
+    })
+  );
+  win.position.set(0, 1.7, 1.011);
+  g.add(win);
+  // Door (side)
+  const door = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.7, 1.6),
+    new THREE.MeshStandardMaterial({ color: 0x2a2c32, roughness: 0.6 })
+  );
+  door.position.set(1.111, 1.1, 0);
+  door.rotation.y = Math.PI / 2;
+  g.add(door);
+  // Light spilling
+  const pl = new THREE.PointLight(0xffcc88, 0.6, 8, 1.8);
+  pl.position.set(0, 1.7, 1.3);
+  g.add(pl);
+  return g;
+}
+
+// ============================================================================
+// Phased-array radar — flat panel mounted on a stout tower (modern style)
+// ============================================================================
+function buildPhasedArray() {
+  const g = new THREE.Group();
+  // Concrete base
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(2.4, 0.4, 2.4),
+    new THREE.MeshStandardMaterial({ color: 0x4a4a52, roughness: 0.95 })
+  );
+  base.position.y = 0.2;
+  g.add(base);
+  // Stout pyramidal pedestal
+  const pedestal = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.5, 1.2, 3.0, 4),
+    new THREE.MeshStandardMaterial({ color: 0x6e6e76, metalness: 0.4, roughness: 0.6 })
+  );
+  pedestal.position.y = 1.9;
+  pedestal.rotation.y = Math.PI / 4;
+  pedestal.castShadow = true;
+  g.add(pedestal);
+  // Pivot block
+  const pivot = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 0.6, 0.9),
+    new THREE.MeshStandardMaterial({ color: 0x444, metalness: 0.55 })
+  );
+  pivot.position.y = 3.7;
+  g.add(pivot);
+  // Flat panel array face
+  const panel = new THREE.Mesh(
+    new THREE.BoxGeometry(3.6, 4.4, 0.35),
+    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.5, metalness: 0.3 })
+  );
+  panel.position.set(0, 5.7, 0);
+  panel.rotation.x = -Math.PI / 9;
+  panel.castShadow = true;
+  g.add(panel);
+  // Panel face — gold accent grid (visible array elements)
+  const arrayFace = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.2, 4.0),
+    new THREE.MeshStandardMaterial({
+      color: 0x1a1c20, roughness: 0.6, metalness: 0.4,
+      emissive: 0x1a3060, emissiveIntensity: 0.2,
+    })
+  );
+  arrayFace.position.set(0, 5.7, 0.176);
+  arrayFace.rotation.x = -Math.PI / 9;
+  g.add(arrayFace);
+  // Grid of small bright dots (array elements)
+  for (let row = 0; row < 7; row++) {
+    for (let col = 0; col < 5; col++) {
+      const dot = new THREE.Mesh(
+        new THREE.CircleGeometry(0.08, 8),
+        new THREE.MeshStandardMaterial({
+          color: 0xd4af37, emissive: 0xd4af37, emissiveIntensity: 0.6,
+        })
+      );
+      // Place on the slanted panel face (approx)
+      const lx = -1.4 + col * 0.7;
+      const ly = -1.7 + row * 0.6;
+      dot.position.set(lx, 5.7 + ly * Math.cos(-Math.PI / 9), 0.18 + ly * Math.sin(Math.PI / 9));
+      dot.rotation.x = -Math.PI / 9;
+      g.add(dot);
+    }
+  }
+  // Frame around panel (gold trim)
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(3.7, 4.5, 0.4),
+    new THREE.MeshStandardMaterial({
+      color: 0xd4af37, metalness: 0.7, roughness: 0.35,
+      emissive: 0x3a2a08, emissiveIntensity: 0.2,
+    })
+  );
+  frame.position.set(0, 5.7, -0.05);
+  frame.rotation.x = -Math.PI / 9;
+  g.add(frame);
+  // Mounted at top: small omnidirectional antenna
+  const omni = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 1.4, 8),
+    new THREE.MeshStandardMaterial({ color: 0xaaa })
+  );
+  omni.position.set(0, 8.5, 0);
+  g.add(omni);
+  const omniTip = new THREE.Mesh(
+    new THREE.SphereGeometry(0.07, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 1.5 })
+  );
+  omniTip.position.set(0, 9.2, 0);
+  g.add(omniTip);
+  // Cable run from base to pivot
+  for (let i = 0; i < 4; i++) {
+    const c = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 3.2, 6),
+      new THREE.MeshStandardMaterial({ color: 0x222 })
+    );
+    c.position.set(-0.3 + i * 0.18, 2.0, 0.55);
+    g.add(c);
+  }
+  // Maintenance ladder on the back
+  for (let h = 0; h < 7; h++) {
+    const rung = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 0.03, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0x999 })
+    );
+    rung.position.set(0, 0.6 + h * 0.45, -0.7);
+    g.add(rung);
+  }
   return g;
 }
 
@@ -1497,7 +2311,4 @@ function easeOutCubic(t) {
 }
 function easeInOut(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-}
-function clamp01(t) {
-  return Math.max(0, Math.min(1, t));
 }
