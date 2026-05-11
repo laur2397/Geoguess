@@ -4,20 +4,21 @@
    ========================================================================== */
 
 :root {
-  --bg: #04070d;
-  --bg-2: #0a0f1a;
-  --ink: #e8edf7;
-  --ink-dim: #9aa6bd;
-  --ink-mute: #5a6379;
-  --line: rgba(220, 228, 246, 0.08);
-  --line-strong: rgba(220, 228, 246, 0.16);
-  --gold: #d4af37;
-  --gold-2: #f1d27a;
-  --gold-dim: #8a6a1a;
-  --navy: #122140;
-  --navy-2: #1c3060;
-  --green: #4ad295;
-  --red: #ff6363;
+  /* Brighter base palette (was very dark navy). Lifted by ~12% lightness. */
+  --bg: #0e1626;
+  --bg-2: #1a2440;
+  --ink: #f2f5fb;
+  --ink-dim: #b1bcd4;
+  --ink-mute: #7a8499;
+  --line: rgba(230, 236, 250, 0.12);
+  --line-strong: rgba(230, 236, 250, 0.22);
+  --gold: #e6c258;
+  --gold-2: #f5d97e;
+  --gold-dim: #a8851d;
+  --navy: #1e3358;
+  --navy-2: #2a4577;
+  --green: #5be0a4;
+  --red: #ff7373;
 
   --maxw: 1240px;
   --pad: clamp(20px, 4vw, 64px);
@@ -49,9 +50,9 @@ html { overflow-y: visible; }
 
 body {
   background:
-    radial-gradient(80% 60% at 50% -10%, rgba(28, 48, 96, 0.45) 0%, transparent 60%),
-    radial-gradient(60% 40% at 100% 100%, rgba(212, 175, 55, 0.08) 0%, transparent 70%),
-    linear-gradient(180deg, #04070d 0%, #02040a 100%);
+    radial-gradient(80% 60% at 50% -10%, rgba(60, 92, 160, 0.55) 0%, transparent 60%),
+    radial-gradient(60% 40% at 100% 100%, rgba(230, 194, 88, 0.12) 0%, transparent 70%),
+    linear-gradient(180deg, #15203a 0%, #0c1424 100%);
   min-height: 100vh;
 }
 
@@ -341,7 +342,7 @@ a:focus-visible, button:focus-visible {
   height: 100svh;
   height: 100dvh;
   overflow: hidden;
-  background: #04070d;
+  background: #14223a;
 }
 .cinematic-stage > canvas {
   position: absolute;
@@ -351,15 +352,15 @@ a:focus-visible, button:focus-visible {
   display: block;
 }
 
-/* Vignette overlay on top of canvas for cinematic feel */
+/* Vignette overlay on top of canvas for cinematic feel — softened. */
 .cinematic-stage::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(140% 100% at 50% 60%, transparent 50%, rgba(0,0,0,0.55) 100%),
-    linear-gradient(180deg, rgba(0,0,0,0.45) 0%, transparent 20%, transparent 80%, rgba(0,0,0,0.45) 100%);
+    radial-gradient(140% 100% at 50% 60%, transparent 60%, rgba(0,0,0,0.32) 100%),
+    linear-gradient(180deg, rgba(0,0,0,0.22) 0%, transparent 22%, transparent 78%, rgba(0,0,0,0.28) 100%);
   z-index: 2;
 }
 

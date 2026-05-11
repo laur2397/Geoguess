@@ -32,8 +32,10 @@ function initCinematic() {
 
   // ===== Renderer ==========================================================
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x04070d);
-  scene.fog = new THREE.FogExp2(0x04070d, 0.014);
+  // Brighter base — was 0x04070d. Now closer to a deep dusk blue/grey.
+  scene.background = new THREE.Color(0x14223a);
+  // Fog density was 0.014 (too dim). 0.0065 lets the skyline + base read clearly.
+  scene.fog = new THREE.FogExp2(0x14223a, 0.0065);
 
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 600);
 
@@ -46,15 +48,19 @@ function initCinematic() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  // Boost exposure for an overall brighter image (was 1.05).
+  renderer.toneMappingExposure = 1.55;
   renderer.shadowMap.enabled = !isMobile;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   // ===== Lighting ==========================================================
-  scene.add(new THREE.HemisphereLight(0x4a78b8, 0x0a0a14, 0.45));
-  scene.add(new THREE.AmbientLight(0xffffff, 0.16));
+  // Hemisphere sky light: was 0.45. Now 1.05 — much more ambient blue/gold.
+  scene.add(new THREE.HemisphereLight(0x88aadd, 0x1a1f30, 1.05));
+  // Ambient floor: was 0.16. Now 0.45.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.45));
 
-  const sun = new THREE.DirectionalLight(0xffeedd, 0.7);
+  // Directional sun: was 0.7. Now 1.6.
+  const sun = new THREE.DirectionalLight(0xfff2d8, 1.6);
   sun.position.set(-22, 28, 16);
   if (!isMobile) {
     sun.castShadow = true;
@@ -75,19 +81,19 @@ function initCinematic() {
   scene.add(shieldLight);
 
   // ===== Environment =======================================================
-  // Ground (large dark plane)
+  // Ground (was very dark 0x080810 — now a lighter dusk asphalt).
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(400, 600),
-    new THREE.MeshStandardMaterial({ color: 0x080810, roughness: 0.95, metalness: 0.05 })
+    new THREE.MeshStandardMaterial({ color: 0x222630, roughness: 0.95, metalness: 0.05 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = !isMobile;
   scene.add(ground);
 
-  // Road (extended for longer journey)
+  // Road (was 0x14141a, lifted to 0x282c34 so it reads against the brighter ground).
   const road = new THREE.Mesh(
     new THREE.PlaneGeometry(11, 600),
-    new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.88, metalness: 0.08 })
+    new THREE.MeshStandardMaterial({ color: 0x282c34, roughness: 0.88, metalness: 0.08 })
   );
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, 0.01, -150);
@@ -144,7 +150,7 @@ function initCinematic() {
   // Apron — the asphalt platform that the base sits on (extends past the road)
   const apron = new THREE.Mesh(
     new THREE.PlaneGeometry(80, 70),
-    new THREE.MeshStandardMaterial({ color: 0x1a1a20, roughness: 0.92, metalness: 0.05 })
+    new THREE.MeshStandardMaterial({ color: 0x2c303a, roughness: 0.92, metalness: 0.05 })
   );
   apron.rotation.x = -Math.PI / 2;
   apron.position.set(0, 0.005, -30);
@@ -1824,46 +1830,14 @@ function buildRadar() {
     g.add(tl);
   }
 
-  // ---- Sweep volumetric cone (the radar "beam") -------------------------
-  const sweepGeo = new THREE.ConeGeometry(2.8, 12, 32, 1, true);
-  const sweepMat = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-    uniforms: {},
-    vertexShader: `
-      varying vec3 vPos;
-      void main() {
-        vPos = position;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      varying vec3 vPos;
-      void main() {
-        float a = smoothstep(12.0, 0.0, vPos.y) * 0.18;
-        gl_FragColor = vec4(0.2, 1.0, 0.5, a);
-      }
-    `,
-  });
-  const sweepCone = new THREE.Mesh(sweepGeo, sweepMat);
-  sweepCone.position.set(0, 1.2 - 5, 4);
-  sweepCone.rotation.x = -Math.PI / 2;
-  dishGroup.add(sweepCone);
-
-  // Sweep spotlight (cyan-green for radar feel)
-  const sweepLight = new THREE.SpotLight(0x33ff99, 1.8, 50, Math.PI / 9, 0.55, 1.4);
-  sweepLight.position.set(0, 1.2, 0.5);
-  dishGroup.add(sweepLight);
-  const sweepTarget = new THREE.Object3D();
-  sweepTarget.position.set(0, -4, 30);
-  dishGroup.add(sweepTarget);
-  sweepLight.target = sweepTarget;
+  // (No volumetric sweep cone — removed per user feedback. Dish still
+  // rotates and the red aviation lights still pulse.)
 
   g.userData.dishGroup = dishGroup;
   g.userData.blink = blink;
-  g.userData.sweepLight = sweepLight;
+  // sweepLight kept as a no-op object so the existing tick() reference
+  // (`radar.userData.sweepLight.intensity = ...`) doesn't crash.
+  g.userData.sweepLight = { intensity: 0 };
   return g;
 }
 
