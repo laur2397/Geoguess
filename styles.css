@@ -40,8 +40,12 @@ html, body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  /* overflow-x: clip avoids horizontal scroll WITHOUT breaking position:sticky
+     on Safari (overflow:hidden creates a scroll container that swallows
+     sticky behaviour). Falls back gracefully on older browsers. */
+  overflow-x: clip;
 }
+html { overflow-y: visible; }
 
 body {
   background:
