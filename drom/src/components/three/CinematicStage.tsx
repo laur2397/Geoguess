@@ -89,24 +89,20 @@ export function CinematicStage() {
   const reduced = cap.reducedMotion;
 
   return (
-    <div ref={stageRef} className="relative" style={{ height: reduced ? 'auto' : '700vh' }}>
+    <div ref={stageRef} className="relative" style={{ height: reduced ? 'auto' : '900vh' }}>
       <div
         ref={stickyRef}
         className="relative h-screen w-full overflow-hidden"
       >
-        {/* Background grids */}
-        <div className="absolute inset-0 grid-overlay opacity-[0.18]" aria-hidden />
-        <div
-          className="absolute inset-0 bg-radial-fade pointer-events-none"
-          aria-hidden
-        />
-        {/* Vignette */}
+        {/* Subtle background grid — much fainter now, lets the drone dominate */}
+        <div className="absolute inset-0 grid-overlay opacity-[0.06]" aria-hidden />
+        {/* Vignette — heavier so light pools on the drone */}
         <div
           className="absolute inset-0 pointer-events-none"
           aria-hidden
           style={{
             background:
-              'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.78) 100%)',
+              'radial-gradient(ellipse 70% 60% at center, transparent 30%, rgba(0,0,0,0.55) 75%, rgba(0,0,0,0.92) 100%)',
           }}
         />
 

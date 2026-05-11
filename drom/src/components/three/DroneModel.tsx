@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useMemo, useRef } from 'react';
+import { forwardRef, useMemo, useRef, MutableRefObject } from 'react';
 import { Group, MeshStandardMaterial, MeshPhysicalMaterial } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Float } from '@react-three/drei';
@@ -8,6 +8,8 @@ import { Float } from '@react-three/drei';
 interface DroneModelProps {
   spinProps?: boolean;
   hover?: boolean;
+  /** 0..1 — drives prop spin speed and accent intensity */
+  propEnergyRef?: MutableRefObject<number>;
 }
 
 /**
@@ -17,7 +19,7 @@ interface DroneModelProps {
  * Built from primitives for performance — no external GLB required.
  */
 export const DroneModel = forwardRef<Group, DroneModelProps>(function DroneModel(
-  { spinProps = true, hover = true },
+  { spinProps = true, hover = true, propEnergyRef },
   ref,
 ) {
   const propRefs = useRef<Group[]>([]);
@@ -107,12 +109,13 @@ export const DroneModel = forwardRef<Group, DroneModelProps>(function DroneModel
   );
 
   useFrame((_, delta) => {
-    if (spinProps) {
-      const speed = 38 * delta;
-      propRefs.current.forEach((p, i) => {
-        if (p) p.rotation.y += i % 2 === 0 ? speed : -speed;
-      });
-    }
+    if (!spinProps) return;
+    // Energy 0..1 → 6..70 rad/s. Idle = lazy spool, mid = combat-ready, high = blur.
+    const energy = propEnergyRef?.current ?? 0.6;
+    const speed = (6 + energy * 64) * delta;
+    propRefs.current.forEach((p, i) => {
+      if (p) p.rotation.y += i % 2 === 0 ? speed : -speed;
+    });
   });
 
   // Arm endpoints (X-shape, slightly offset arms = compact tactical look)

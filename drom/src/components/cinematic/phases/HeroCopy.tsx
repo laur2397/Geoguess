@@ -2,51 +2,32 @@
 
 export function HeroCopy() {
   return (
-    <div className="absolute inset-0 flex items-center">
+    <div className="absolute inset-0 flex items-end pb-20 md:pb-28">
       <div className="shell w-full">
-        <div className="max-w-2xl">
-          <div className="flex items-center gap-3">
-            <span className="h-px w-10 bg-signal-blue/70" />
-            <span className="eyebrow">COMPACT AERIAL PLATFORM / DEFENSE &amp; SECURITY</span>
-          </div>
-          <h1 className="mt-6 font-display text-h1 md:text-display font-semibold leading-[0.96] text-text-primary">
-            DROM
-            <span className="block text-h3 md:text-h2 font-light text-text-secondary mt-3 max-w-[18ch]">
-              Advanced Aerial System for Defense Applications
-            </span>
-          </h1>
-          <p className="mt-7 max-w-prose text-lead text-text-secondary">
-            A compact aerial platform engineered for mobility, precision control and rapid
-            tactical integration in demanding operational environments.
-          </p>
-          <div className="mt-9 flex flex-wrap items-center gap-4 pointer-events-auto">
-            <a href="#inspection" className="btn-primary">
-              Explore Platform
-            </a>
-            <a href="#technical-brief" className="btn-ghost">
-              Request Technical Brief
-            </a>
-          </div>
+        <div className="flex items-center gap-3 mb-4">
+          <span className="h-px w-8 bg-signal-blue/70" />
+          <span className="font-mono text-micro uppercase tracking-widest text-text-muted">
+            COMPACT AERIAL PLATFORM
+          </span>
+        </div>
 
-          <div className="mt-12 grid grid-cols-3 gap-6 max-w-md pointer-events-auto">
-            <Stat label="DIMENSIONS" value="395 × 395 × 190" unit="mm" />
-            <Stat label="WEIGHT" value="1180" unit="g" />
-            <Stat label="ROLE" value="COMPACT" unit="TACTICAL" />
-          </div>
+        <h1 className="font-display font-light text-[12vw] md:text-[7vw] lg:text-[6.5rem] leading-[0.9] text-text-primary tracking-tight">
+          DROM
+        </h1>
+
+        <p className="mt-5 max-w-[28ch] text-lead text-text-secondary">
+          Advanced aerial system for defense applications.
+        </p>
+
+        <div className="mt-8 flex flex-wrap items-center gap-3 pointer-events-auto">
+          <a href="#inspection" className="btn-primary">
+            Explore Platform
+          </a>
+          <a href="#technical-brief" className="btn-ghost">
+            Request Brief
+          </a>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
-  return (
-    <div>
-      <span className="micro text-text-muted block">{label}</span>
-      <span className="mt-1 block font-mono text-label text-text-primary tabular-nums">
-        {value}
-      </span>
-      <span className="micro text-text-muted">{unit}</span>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { FeatureCallouts } from './phases/FeatureCallouts';
 import { CommandLayer } from './phases/CommandLayer';
 import { LockupCopy } from './phases/LockupCopy';
 
-const range = (p: number, a: number, b: number, fadeIn = 0.05, fadeOut = 0.05) => {
+const range = (p: number, a: number, b: number, fadeIn = 0.04, fadeOut = 0.04) => {
   if (p < a - fadeIn) return 0;
   if (p > b + fadeOut) return 0;
   if (p < a) return (p - (a - fadeIn)) / fadeIn;
@@ -16,16 +16,20 @@ const range = (p: number, a: number, b: number, fadeIn = 0.05, fadeOut = 0.05) =
   return 1;
 };
 
+/**
+ * Crossfade overlay synced to the 8-phase scene timeline.
+ * Phase ranges intentionally have small gaps so motion can dominate between text.
+ */
 export function CinematicOverlay() {
   const p = useSceneState((s) => s.progress);
 
   const opacities = {
-    hero: range(p, 0.0, 0.28, 0.0, 0.05),
-    inspection: range(p, 0.30, 0.48, 0.04, 0.05),
-    spec: range(p, 0.50, 0.64, 0.04, 0.05),
-    features: range(p, 0.66, 0.78, 0.04, 0.05),
-    command: range(p, 0.80, 0.90, 0.04, 0.05),
-    lockup: range(p, 0.92, 1.0, 0.04, 0.0),
+    hero: range(p, 0.0, 0.20, 0.0, 0.04),
+    inspection: range(p, 0.26, 0.42, 0.04, 0.04),
+    spec: range(p, 0.55, 0.66, 0.04, 0.04),
+    features: range(p, 0.68, 0.78, 0.04, 0.04),
+    command: range(p, 0.80, 0.90, 0.04, 0.04),
+    lockup: range(p, 0.93, 1.0, 0.04, 0.0),
   };
 
   return (
