@@ -18,6 +18,62 @@ onScroll();
 window.addEventListener("scroll", onScroll, { passive: true });
 
 // ----------------------------------------------------------------------------
+// Hero video — plays once, fades out on (a) ended event,
+// (b) scroll past threshold, or (c) skip button click. If the source MP4
+// is missing, hide the element entirely so the 3D canvas takes over.
+// ----------------------------------------------------------------------------
+const heroVideo = document.getElementById("hero-video");
+const videoSkip = document.getElementById("video-skip");
+let videoFaded = false;
+
+function fadeOutVideo() {
+  if (videoFaded || !heroVideo) return;
+  videoFaded = true;
+  heroVideo.classList.add("is-fading");
+  videoSkip?.classList.add("is-hidden");
+  setTimeout(() => {
+    heroVideo.classList.add("is-hidden");
+    try { heroVideo.pause(); } catch (e) {}
+  }, 1300);
+}
+
+if (heroVideo) {
+  heroVideo.addEventListener("ended", fadeOutVideo);
+
+  // If the source can't load (file missing, network error, decoder issue),
+  // hide both the video and the skip button so the user sees the 3D scene.
+  heroVideo.addEventListener("error", () => {
+    heroVideo.classList.add("is-hidden");
+    videoSkip?.classList.add("is-hidden");
+  });
+  heroVideo.querySelector("source")?.addEventListener("error", () => {
+    heroVideo.classList.add("is-hidden");
+    videoSkip?.classList.add("is-hidden");
+  });
+
+  // If autoplay is blocked, also fade so the user isn't stuck.
+  const playPromise = heroVideo.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      // Autoplay rejected — let the 3D scene take over after a short delay.
+      setTimeout(fadeOutVideo, 600);
+    });
+  }
+
+  // Fade if the user starts scrolling (signals they want to engage).
+  window.addEventListener("scroll", () => {
+    if (window.scrollY > window.innerHeight * 0.12) fadeOutVideo();
+  }, { passive: true });
+
+  videoSkip?.addEventListener("click", fadeOutVideo);
+
+  // Hard timeout: if video never ends (looping or stuck), fade after 14s.
+  setTimeout(fadeOutVideo, 14000);
+} else if (videoSkip) {
+  videoSkip.classList.add("is-hidden");
+}
+
+// ----------------------------------------------------------------------------
 // i18n — RO / EN
 // ----------------------------------------------------------------------------
 const dict = {
@@ -31,6 +87,7 @@ const dict = {
     "cin.radar": "Radar activ · contract direct US Navy N68171-24-P-2063",
     "cin.email": "Contactează-ne",
     "cin.address": "Str. Lotrului 27, Caracal, RO",
+    "video.skip": "Sari peste intro",
 
     "hero.eyebrow": "Furnizor certificat NATO · Din 2018",
     "hero.t1": "Parteneri de încredere",
@@ -54,6 +111,7 @@ const dict = {
     "cin.radar": "Radar active · direct US Navy contract N68171-24-P-2063",
     "cin.email": "Contact us",
     "cin.address": "Str. Lotrului 27, Caracal, Romania",
+    "video.skip": "Skip intro",
 
     "hero.eyebrow": "NATO-certified supplier · Since 2018",
     "hero.t1": "Trusted partners",
