@@ -54,8 +54,9 @@ function initCinematic() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // Boost exposure for an overall brighter image (was 1.05).
   renderer.toneMappingExposure = 1.55;
-  renderer.shadowMap.enabled = !isMobile;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Shadows disabled globally — biggest perf win. The scene reads clearly
+  // from the emissive surfaces + directional lighting alone.
+  renderer.shadowMap.enabled = false;
 
   // ===== Lighting ==========================================================
   // Hemisphere sky light: was 0.45. Now 1.05 — much more ambient blue/gold.
@@ -67,7 +68,6 @@ function initCinematic() {
   const sun = new THREE.DirectionalLight(0xfff2d8, 1.6);
   sun.position.set(-22, 28, 16);
   if (!isMobile) {
-    sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 90;
@@ -91,7 +91,6 @@ function initCinematic() {
     new THREE.MeshStandardMaterial({ color: 0x222630, roughness: 0.95, metalness: 0.05 })
   );
   ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = !isMobile;
   scene.add(ground);
 
   // Road (was 0x14141a, lifted to 0x282c34 so it reads against the brighter ground).
@@ -101,7 +100,6 @@ function initCinematic() {
   );
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, 0.01, -150);
-  road.receiveShadow = !isMobile;
   scene.add(road);
 
   // Road edge lines
@@ -179,7 +177,6 @@ function initCinematic() {
   );
   apron.rotation.x = -Math.PI / 2;
   apron.position.set(0, 0.005, -30);
-  apron.receiveShadow = !isMobile;
   scene.add(apron);
 
   // Paint lines on the apron (parking grid)
@@ -301,7 +298,7 @@ function initCinematic() {
 
   // ----- Background helipad circle ----------------------------------------
   const helipad = new THREE.Mesh(
-    new THREE.CircleGeometry(5, 48),
+    new THREE.CircleGeometry(5, 24),
     new THREE.MeshStandardMaterial({ color: 0x222226, roughness: 0.9 })
   );
   helipad.rotation.x = -Math.PI / 2;
@@ -349,11 +346,10 @@ function initCinematic() {
   // Procedurally seeded so the same skyline appears every time the page loads.
   const skylineSeed = 73;
   const rand = mulberry32(skylineSeed);
-  // Layout: rows on both sides at z = -200..-50, pushed FURTHER from the
-  // road so window-grid Points don't visually overlap the central camera
-  // frame (they were reading as "floating particles" before).
+  // Layout: rows on both sides, halved count for performance. Wider Z
+  // spacing (was 16-22, now 24-30) so ~25 skyscrapers total instead of 50.
   const skylinePlacements = [];
-  for (let z = -210; z <= -45; z += 16 + Math.floor(rand() * 6)) {
+  for (let z = -210; z <= -45; z += 24 + Math.floor(rand() * 6)) {
     for (const side of [-1, 1]) {
       skylinePlacements.push({
         x: side * (62 + rand() * 18),
@@ -363,8 +359,8 @@ function initCinematic() {
         d: 5 + rand() * 6,
         tint: 0x14 + Math.floor(rand() * 0x12),
       });
-      // Back row — taller, even further away
-      if (rand() > 0.5) {
+      // Back row — taller, only ~30% chance to draw
+      if (rand() > 0.7) {
         skylinePlacements.push({
           x: side * (95 + rand() * 25),
           z: z + (rand() - 0.5) * 8,
@@ -387,7 +383,7 @@ function initCinematic() {
   for (const p of skylinePlacements) {
     if (p.h < 50) continue;
     const blink = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18, 8, 8),
+      new THREE.SphereGeometry(0.18, 6, 6),
       new THREE.MeshStandardMaterial({
         color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 1.8,
       })
@@ -781,8 +777,6 @@ function buildTruck(isMobile) {
   });
   const trailer = new THREE.Mesh(new RoundedBoxGeometry(2.6, 2.8, 7, 4, 0.08), trailerMat);
   trailer.position.set(0, 1.95, -2.0);
-  trailer.castShadow = !isMobile;
-  trailer.receiveShadow = !isMobile;
   g.add(trailer);
 
   // Trailer gold trim (top and bottom bands)
@@ -934,7 +928,6 @@ function buildTruck(isMobile) {
   });
   const cab = new THREE.Mesh(new RoundedBoxGeometry(2.5, 2.45, 2.1, 4, 0.18), cabMat);
   cab.position.set(0, 1.75, 2.4);
-  cab.castShadow = !isMobile;
   g.add(cab);
 
   // Cab roof (slimmer)
@@ -982,7 +975,6 @@ function buildTruck(isMobile) {
   // Hood
   const hood = new THREE.Mesh(new RoundedBoxGeometry(2.5, 1.05, 1.5, 4, 0.16), cabMat);
   hood.position.set(0, 1.05, 3.65);
-  hood.castShadow = !isMobile;
   g.add(hood);
 
   // Grille
@@ -1080,7 +1072,7 @@ function buildTruck(isMobile) {
 
   // ----- Wheels (8 — simple cylinder tires + bright rim disc) ------------
   const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.85 });
-  const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.46, 24);
+  const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.46, 14);
   const rimMat = new THREE.MeshStandardMaterial({
     color: 0xb8b8c0, metalness: 0.75, roughness: 0.3,
   });
@@ -1092,7 +1084,6 @@ function buildTruck(isMobile) {
       const w = new THREE.Mesh(wheelGeo, wheelMat);
       w.rotation.z = Math.PI / 2;
       w.position.set(x, 0.6, z);
-      w.castShadow = !isMobile;
       g.add(w);
       wheels.push(w);
       const rim = new THREE.Mesh(rimGeo, rimMat);
@@ -1167,9 +1158,8 @@ function buildShield() {
     color: 0x142a52, roughness: 0.35, metalness: 0.55,
     emissive: 0x0a1838, emissiveIntensity: 0.4,
   });
-  const disc = new THREE.Mesh(new THREE.CylinderGeometry(4.0, 4.0, 0.4, 96), baseMat);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(4.0, 4.0, 0.4, 36), baseMat);
   disc.rotation.x = Math.PI / 2;
-  disc.castShadow = true;
   g.add(disc);
 
   // Gold rim torus
@@ -1177,12 +1167,12 @@ function buildShield() {
     color: 0xd4af37, roughness: 0.18, metalness: 0.95,
     emissive: 0xd4af37, emissiveIntensity: 0.6,
   });
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(4.0, 0.22, 16, 96), rimMat);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(4.0, 0.22, 8, 48), rimMat);
   g.add(rim);
 
   // Inner blue disc
   const inner = new THREE.Mesh(
-    new THREE.CylinderGeometry(3.35, 3.35, 0.12, 80),
+    new THREE.CylinderGeometry(3.35, 3.35, 0.12, 36),
     new THREE.MeshStandardMaterial({
       color: 0x3a6cf0, emissive: 0x1c3ea0, emissiveIntensity: 0.55,
       roughness: 0.45, metalness: 0.3,
@@ -1460,7 +1450,6 @@ function buildHighwaySign(line1, line2) {
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x6a6a6e, metalness: 0.7, roughness: 0.4 });
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 5, 12), poleMat);
   pole.position.y = 2.5;
-  pole.castShadow = true;
   g.add(pole);
   // Reflective stripe near bottom of pole
   const stripe = new THREE.Mesh(
@@ -1479,7 +1468,6 @@ function buildHighwaySign(line1, line2) {
     })
   );
   panel.position.set(0, 4.2, 0);
-  panel.castShadow = true;
   g.add(panel);
   // Back face (gray steel)
   const back = new THREE.Mesh(
@@ -1534,7 +1522,6 @@ function buildMilitaryGate() {
   for (const x of [-5.5, 5.5]) {
     const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.3, 6.5, 1.3), pillarMat);
     pillar.position.set(x, 3.25, 0);
-    pillar.castShadow = true;
     g.add(pillar);
     // Gold trim band on pillar
     const band = new THREE.Mesh(new THREE.BoxGeometry(1.36, 0.18, 1.36), trimMat);
@@ -1546,14 +1533,11 @@ function buildMilitaryGate() {
       new THREE.MeshStandardMaterial({ color: 0xfff5d8, emissive: 0xffcc66, emissiveIntensity: 2.2 })
     );
     lamp.position.set(x, 6.7, 0); g.add(lamp);
-    // Point light spilling onto road
-    const pl = new THREE.PointLight(0xffcc66, 1.4, 14, 1.6);
-    pl.position.set(x, 6.5, 0); g.add(pl);
+    // (No PointLight here — emissive lamp surface already reads as a light source.)
   }
   // Crossbar
   const crossbar = new THREE.Mesh(new THREE.BoxGeometry(12, 0.9, 1.3), pillarMat);
   crossbar.position.set(0, 6.95, 0);
-  crossbar.castShadow = true;
   g.add(crossbar);
   // Gold trim on crossbar bottom
   const cTrim = new THREE.Mesh(new THREE.BoxGeometry(11.9, 0.1, 1.35), trimMat);
@@ -1621,7 +1605,6 @@ function buildWatchtower() {
     new THREE.MeshStandardMaterial({ color: 0x404045, roughness: 0.9 })
   );
   platform.position.y = 5.6;
-  platform.castShadow = true;
   g.add(platform);
   // Cabin
   const cabin = new THREE.Mesh(
@@ -1629,7 +1612,6 @@ function buildWatchtower() {
     new THREE.MeshStandardMaterial({ color: 0x14223e, roughness: 0.4, metalness: 0.2 })
   );
   cabin.position.y = 6.6;
-  cabin.castShadow = true;
   g.add(cabin);
   // Roof (pyramidal)
   const roof = new THREE.Mesh(
@@ -1648,10 +1630,7 @@ function buildWatchtower() {
   );
   win.position.set(0, 6.7, 1.11);
   g.add(win);
-  // Soft light spilling from window
-  const winLight = new THREE.PointLight(0xffcc66, 0.7, 10, 2);
-  winLight.position.set(0, 6.7, 1.5);
-  g.add(winLight);
+  // (Removed window PointLight — emissive glow on the window pane is enough.)
   return g;
 }
 
@@ -1685,19 +1664,17 @@ function buildRadar() {
 
   // ---- Concrete foundation pad (wide, two-tier) -------------------------
   const padOuter = new THREE.Mesh(
-    new THREE.CylinderGeometry(3.6, 3.8, 0.3, 32),
+    new THREE.CylinderGeometry(3.6, 3.8, 0.3, 18),
     new THREE.MeshStandardMaterial({ color: 0x4a4a52, roughness: 0.95 })
   );
   padOuter.position.y = 0.15;
-  padOuter.receiveShadow = true;
   g.add(padOuter);
 
   const padInner = new THREE.Mesh(
-    new THREE.CylinderGeometry(2.4, 2.5, 0.6, 24),
+    new THREE.CylinderGeometry(2.4, 2.5, 0.6, 16),
     new THREE.MeshStandardMaterial({ color: 0x5a5a62, roughness: 0.92 })
   );
   padInner.position.y = 0.4;
-  padInner.castShadow = true;
   g.add(padInner);
 
   // Concrete bollards around the pad
@@ -1724,7 +1701,6 @@ function buildRadar() {
     legMat
   );
   core.position.y = 0.7 + towerHeight / 2;
-  core.castShadow = true;
   g.add(core);
 
   // 4 lattice legs (tapering inward toward top)
@@ -1744,7 +1720,6 @@ function buildRadar() {
     // Rotate the cylinder to align with leg direction
     leg.lookAt(new THREE.Vector3(xTop, 0.7 + towerHeight, zTop));
     leg.rotateX(Math.PI / 2);
-    leg.castShadow = true;
     g.add(leg);
 
     // Horizontal cross-bars between adjacent legs at 4 heights
@@ -1793,11 +1768,10 @@ function buildRadar() {
   // ---- Maintenance platforms (2 levels) ---------------------------------
   for (const y of [3.5, 6.5]) {
     const platform = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.3, 1.3, 0.08, 24),
+      new THREE.CylinderGeometry(1.3, 1.3, 0.08, 16),
       new THREE.MeshStandardMaterial({ color: 0x666, metalness: 0.5, roughness: 0.6 })
     );
     platform.position.y = y;
-    platform.castShadow = true;
     g.add(platform);
     // Railing around platform
     for (let i = 0; i < 16; i++) {
@@ -1876,7 +1850,6 @@ function buildRadar() {
       new THREE.MeshStandardMaterial({ color: 0x6e6e76, metalness: 0.55, roughness: 0.4 })
     );
     arm.position.set(dx, 0.6, 0);
-    arm.castShadow = true;
     dishGroup.add(arm);
   }
   // Elevation pivot cross-bar between arms
@@ -1896,7 +1869,7 @@ function buildRadar() {
     const y = t * t * 0.7;
     dishPoints.push(new THREE.Vector2(x, y));
   }
-  const dishGeo = new THREE.LatheGeometry(dishPoints, 48);
+  const dishGeo = new THREE.LatheGeometry(dishPoints, 32);
   const dish = new THREE.Mesh(
     dishGeo,
     new THREE.MeshStandardMaterial({
@@ -1906,7 +1879,6 @@ function buildRadar() {
   );
   dish.rotation.x = -Math.PI / 2.4;
   dish.position.y = 1.2;
-  dish.castShadow = true;
   dishGroup.add(dish);
 
   // Concentric rings on the back of the dish (structural ribs)
@@ -2017,8 +1989,6 @@ function buildWarehouse(w, h, d, color) {
   const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.1 });
   const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   body.position.y = h / 2;
-  body.castShadow = true;
-  body.receiveShadow = true;
   g.add(body);
   // Slightly pitched roof line (a darker top band)
   const roof = new THREE.Mesh(
@@ -2081,7 +2051,6 @@ function buildContainer(color) {
     new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.3 })
   );
   body.position.y = 1.275;
-  body.castShadow = true;
   g.add(body);
   // Corrugated stripes on long sides
   const stripeMat = new THREE.MeshStandardMaterial({ color: 0x000, roughness: 0.8 });
@@ -2143,7 +2112,6 @@ function buildLightMast() {
     new THREE.MeshStandardMaterial({ color: 0x7a7a82, metalness: 0.5, roughness: 0.5 })
   );
   pole.position.y = 4.8;
-  pole.castShadow = true;
   g.add(pole);
   // Crossbar at the top
   const crossbar = new THREE.Mesh(
@@ -2165,10 +2133,8 @@ function buildLightMast() {
     panel.rotation.x = -Math.PI / 5;
     g.add(panel);
   }
-  // Point light spilling onto the apron
-  const pl = new THREE.PointLight(0xffcc88, 0.6, 22, 1.6);
-  pl.position.y = 9.0;
-  g.add(pl);
+  // (Removed per-mast PointLight — 8 of them was the biggest perf cost.
+  // The bright emissive LED panels still read as lights.)
   return g;
 }
 
@@ -2181,10 +2147,9 @@ function buildFuelTank() {
   const tankMat = new THREE.MeshStandardMaterial({
     color: 0x9aa6bd, metalness: 0.6, roughness: 0.45,
   });
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 3.0, 24), tankMat);
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 3.0, 14), tankMat);
   tank.rotation.z = Math.PI / 2;
   tank.position.y = 1.2;
-  tank.castShadow = true;
   g.add(tank);
   // End caps (slightly darker)
   for (const dx of [-1.5, 1.5]) {
@@ -2207,7 +2172,7 @@ function buildFuelTank() {
   }
   // Hazard stripe band around the tank
   const stripe = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.91, 0.91, 0.3, 24),
+    new THREE.CylinderGeometry(0.91, 0.91, 0.3, 14),
     new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, emissive: 0x3a2a08, emissiveIntensity: 0.2 })
   );
   stripe.rotation.z = Math.PI / 2;
@@ -2231,7 +2196,6 @@ function buildAdminBlock() {
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0x34363c, roughness: 0.7, metalness: 0.15 });
   const body = new THREE.Mesh(new THREE.BoxGeometry(10, 9, 14), bodyMat);
   body.position.y = 4.5;
-  body.castShadow = true;
   g.add(body);
   // Gold trim band at top
   const trim = new THREE.Mesh(
@@ -2308,7 +2272,6 @@ function buildGuardCabin() {
     new THREE.MeshStandardMaterial({ color: 0x14223e, roughness: 0.5, metalness: 0.2 })
   );
   body.position.y = 1.5;
-  body.castShadow = true;
   g.add(body);
   // Roof overhang
   const roof = new THREE.Mesh(
@@ -2335,10 +2298,7 @@ function buildGuardCabin() {
   door.position.set(1.111, 1.1, 0);
   door.rotation.y = Math.PI / 2;
   g.add(door);
-  // Light spilling
-  const pl = new THREE.PointLight(0xffcc88, 0.6, 8, 1.8);
-  pl.position.set(0, 1.7, 1.3);
-  g.add(pl);
+  // (Removed PointLight — emissive window is enough.)
   return g;
 }
 
@@ -2361,7 +2321,6 @@ function buildPhasedArray() {
   );
   pedestal.position.y = 1.9;
   pedestal.rotation.y = Math.PI / 4;
-  pedestal.castShadow = true;
   g.add(pedestal);
   // Pivot block
   const pivot = new THREE.Mesh(
@@ -2377,7 +2336,6 @@ function buildPhasedArray() {
   );
   panel.position.set(0, 5.7, 0);
   panel.rotation.x = -Math.PI / 9;
-  panel.castShadow = true;
   g.add(panel);
   // Panel face — gold accent grid (visible array elements)
   const arrayFace = new THREE.Mesh(
@@ -2530,7 +2488,6 @@ function buildBillboard() {
   for (const dx of [-2.6, 2.6]) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 7.5, 12), poleMat);
     pole.position.set(dx, 3.75, 0);
-    pole.castShadow = true;
     g.add(pole);
   }
   // Cross-beam at the back of the panel
@@ -2559,7 +2516,6 @@ function buildBillboard() {
     })
   );
   panel.position.set(0, 6.5, 0.01);
-  panel.castShadow = true;
   g.add(panel);
 
   // Gold frame around the panel
@@ -2600,12 +2556,11 @@ function buildBillboard() {
     cone.position.set(i * 2.2, 8.5, 0.85);
     cone.rotation.x = -Math.PI / 1.6;
     g.add(cone);
-    // Actual SpotLight illuminating the panel
-    const sl = new THREE.SpotLight(0xfff0d0, 1.8, 8, Math.PI / 4, 0.6, 1.0);
-    sl.position.set(i * 2.2, 8.7, 0.85);
-    sl.target.position.set(i * 2.2, 6.0, 0.0);
-    g.add(sl, sl.target);
+    // (No actual SpotLight per lamp — panel emissive material already
+    // glows; saved 3 dynamic lights for performance.)
   }
+  // Panel itself made slightly more emissive so it stays readable
+  // without the flood spotlights.
 
   return g;
 }
@@ -2672,7 +2627,6 @@ function buildControlTower() {
     new THREE.MeshStandardMaterial({ color: 0x6e6e76, roughness: 0.85 })
   );
   shaft.position.y = 7.1;
-  shaft.castShadow = true;
   g.add(shaft);
   // Vertical window strip on shaft
   const winStrip = new THREE.Mesh(
@@ -2693,7 +2647,6 @@ function buildControlTower() {
     })
   );
   cabin.position.y = 14;
-  cabin.castShadow = true;
   g.add(cabin);
   // Cabin floor + roof bands
   const floor = new THREE.Mesh(
@@ -2721,15 +2674,12 @@ function buildControlTower() {
   g.add(mast);
   // Red beacon at the very top
   const beacon = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 8, 8),
+    new THREE.SphereGeometry(0.12, 6, 6),
     new THREE.MeshStandardMaterial({ color: 0xff3030, emissive: 0xff3030, emissiveIntensity: 2 })
   );
   beacon.position.y = 20.7;
   g.add(beacon);
-  // Subtle warm point light from cabin
-  const cabinLight = new THREE.PointLight(0xffcc88, 0.6, 14, 1.8);
-  cabinLight.position.y = 14;
-  g.add(cabinLight);
+  // (Removed cabin PointLight — emissive cabin material already glows.)
   return g;
 }
 
@@ -2744,7 +2694,6 @@ function buildLoadingDock() {
     new THREE.MeshStandardMaterial({ color: 0x5a5a62, roughness: 0.9 })
   );
   platform.position.set(0, 0.55, 0);
-  platform.castShadow = true;
   g.add(platform);
   // Yellow edge stripe (hazard marking)
   const edge = new THREE.Mesh(
@@ -2797,7 +2746,6 @@ function buildFuelStation() {
       new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.6, roughness: 0.4 })
     );
     col.position.set(cx, 2.25, cz);
-    col.castShadow = true;
     g.add(col);
   }
   // Canopy roof
@@ -2806,7 +2754,6 @@ function buildFuelStation() {
     new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 })
   );
   canopy.position.y = 4.65;
-  canopy.castShadow = true;
   g.add(canopy);
   // Canopy gold trim band
   const trim = new THREE.Mesh(
@@ -2932,7 +2879,6 @@ function buildParkedTruck() {
     new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.55, metalness: 0.15 })
   );
   trailer.position.set(0, 1.7, -1.5);
-  trailer.castShadow = true;
   g.add(trailer);
   // Cab
   const cab = new THREE.Mesh(
@@ -2940,7 +2886,6 @@ function buildParkedTruck() {
     new THREE.MeshStandardMaterial({ color: 0x556a4a, roughness: 0.45, metalness: 0.2 })
   );
   cab.position.set(0, 1.5, 2.2);
-  cab.castShadow = true;
   g.add(cab);
   // Windshield (single plane)
   const win = new THREE.Mesh(
@@ -2976,7 +2921,6 @@ function buildForklift() {
     new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.5, metalness: 0.4 })
   );
   body.position.set(0, 0.7, 0);
-  body.castShadow = true;
   g.add(body);
   // Cabin frame
   for (const cx of [-0.5, 0.5]) {
@@ -3036,8 +2980,6 @@ function buildCrate(sx, sy, sz, color) {
     new THREE.BoxGeometry(sx, sy, sz),
     new THREE.MeshStandardMaterial({ color, roughness: 0.85 })
   );
-  body.castShadow = true;
-  body.receiveShadow = true;
   g.add(body);
   // Reinforcement bands (8 edges as thin dark boxes)
   const bandMat = new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.7 });
@@ -3096,7 +3038,6 @@ function buildRadome() {
     new THREE.MeshStandardMaterial({ color: 0x6e6e76, roughness: 0.85 })
   );
   pillar.position.y = 1.1;
-  pillar.castShadow = true;
   g.add(pillar);
   // White sphere (segmented to look geodesic)
   const sphere = new THREE.Mesh(
@@ -3107,7 +3048,6 @@ function buildRadome() {
     })
   );
   sphere.position.y = 3.5;
-  sphere.castShadow = true;
   g.add(sphere);
   // Wireframe overlay to emphasise geodesic look
   const wire = new THREE.Mesh(
@@ -3144,8 +3084,6 @@ function buildSkyscraper(w, h, d, tint, rand) {
     })
   );
   body.position.y = h / 2 + 0.6;
-  body.castShadow = true;
-  body.receiveShadow = true;
   g.add(body);
 
   // Window grid — small bright dots representing lit windows.
