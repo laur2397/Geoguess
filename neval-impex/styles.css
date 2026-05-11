@@ -1042,6 +1042,116 @@ a:focus-visible, button:focus-visible {
 }
 
 /* ============================================================================
+   Mission & Values
+   ========================================================================== */
+.mv-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+@media (max-width: 980px) { .mv-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .mv-grid { grid-template-columns: 1fr; } }
+
+.mv-card {
+  position: relative;
+  padding: 26px 22px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: rgba(10, 15, 26, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+.mv-card:hover {
+  border-color: rgba(212, 175, 55, 0.35);
+  transform: translateY(-3px);
+}
+.mv-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.12);
+  color: var(--gold);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.mv-card h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  margin: 0;
+  font-weight: 600;
+}
+.mv-card p {
+  font-size: 13.5px;
+  color: var(--ink-dim);
+  margin: 0;
+}
+.mv-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding: 5px 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 999px;
+  align-self: flex-start;
+}
+
+/* Mission card — spans 2 columns, larger text, gold border */
+.mv-card.mv-mission {
+  grid-column: span 2;
+  background:
+    linear-gradient(160deg, rgba(212, 175, 55, 0.08) 0%, rgba(10, 15, 26, 0.6) 100%);
+  border-color: rgba(212, 175, 55, 0.35);
+}
+.mv-card.mv-mission p {
+  font-size: 15.5px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.55;
+}
+@media (max-width: 980px) { .mv-card.mv-mission { grid-column: span 2; } }
+@media (max-width: 600px) { .mv-card.mv-mission { grid-column: span 1; } }
+
+/* QA card — spans 2 columns, with bulleted list */
+.mv-card.mv-qa {
+  grid-column: span 2;
+  background:
+    linear-gradient(160deg, rgba(74, 124, 255, 0.06) 0%, rgba(10, 15, 26, 0.6) 100%);
+  border-color: rgba(74, 124, 255, 0.25);
+}
+.mv-card.mv-qa ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mv-card.mv-qa li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 14px;
+  color: var(--ink-dim);
+}
+.mv-card.mv-qa li::before {
+  content: "▸";
+  position: absolute;
+  left: 0;
+  color: var(--gold);
+}
+@media (max-width: 980px) { .mv-card.mv-qa { grid-column: span 2; } }
+@media (max-width: 600px) { .mv-card.mv-qa { grid-column: span 1; } }
+
+/* ============================================================================
    Products
    ========================================================================== */
 

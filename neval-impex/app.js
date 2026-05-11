@@ -216,6 +216,7 @@ const dict = {
   ro: {
     "brand.sub": "Defense Supply · NATO Partner",
     "nav.about": "Despre",
+    "nav.values": "Misiune",
     "nav.products": "Produse",
     "nav.clients": "Clienți",
     "nav.timeline": "Istoric",
@@ -254,13 +255,36 @@ const dict = {
       "Înregistrare activă SAM.gov · CAGE 1HAZL · Eligibilă pentru contracte directe cu Departamentul Apărării SUA și forțele NATO.",
     "about.c2.t": "Partener NATO din 2018",
     "about.c2.b":
-      "7+ ani de contracte militare neîntrerupte, 150+ tranzacții finalizate la baze active din România și SUA.",
+      "7+ ani de contracte militare neîntrerupte, 500+ tranzacții finalizate la baze active din România și SUA.",
     "about.c3.t": "Producători globali de top",
     "about.c3.b":
       "Parteneriate directe cu Philips, Schneider Electric, ABB și Schrack Technik — acces la cele mai cerute echipamente industriale.",
     "about.c4.t": "Logistică internațională",
     "about.c4.b":
       "Partener strategic DP World Romania. Livrări door-to-door verificate până la Tyndall AFB (Florida) și Colorado Springs.",
+
+    "mv.kicker": "01b · Misiune & Valori",
+    "mv.title": "Misiunea noastră. Valorile pe care le respectăm.",
+    "mv.lead":
+      "Construim relații pe termen lung bazate pe încredere, livrăm la timp și sourcing-ul vine întotdeauna de la producători certificați.",
+    "mv.mTag": "Misiune",
+    "mv.mission":
+      "Să fim furnizorul preferat de materiale industriale și soluții pentru forțele armate aliate și clienții industriali — cu livrare rapidă, conformitate FAR/DFARS și un nivel de suport adaptat fiecărui contract.",
+    "mv.v1.t": "Încredere",
+    "mv.v1.b": "Practici transparente, comunicare directă, contracte respectate.",
+    "mv.v2.t": "Fiabilitate",
+    "mv.v2.b": "Performanță constantă pe parcursul a 22+ ani de activitate, fără întreruperi nici în COVID.",
+    "mv.v3.t": "Focus pe Client",
+    "mv.v3.b": "Înțelegem cerințele unice ale fiecărui contract și depășim așteptările.",
+    "mv.v4.t": "Inovație",
+    "mv.v4.b": "Adoptăm noi tehnologii și soluții pentru a livra mai eficient.",
+    "mv.v5.t": "Sustenabilitate",
+    "mv.v5.b": "Practici prietenoase cu mediul, ambalaje reciclabile, reducerea amprentei logistice.",
+    "mv.qaTag": "Asigurarea Calității",
+    "mv.qa1": "Sourcing direct de la producători certificați (Philips, Schneider Electric, ABB, Schrack, Daikin, Atlas Copco)",
+    "mv.qa2": "Proceduri riguroase de control al calității pe fiecare comandă",
+    "mv.qa3": "Produse și servicii certificate · conformitate FAR/DFARS · prioritate DPAS DO-C9",
+    "mv.qa4": "Lanț logistic verificat România → baze active SUA (Tyndall AFB, Colorado Springs)",
 
     "prod.kicker": "02 · Produse & Servicii",
     "prod.title": "Gama completă pentru operațiuni militare, civile și industriale.",
@@ -406,6 +430,11 @@ const dict = {
     "ct.phone": "Telefon",
     "ct.admin": "Administrator",
     "ct.addr": "Adresă",
+    "ct.naics": "Coduri NAICS",
+    "ct.founded": "Înființată",
+    "ct.years": "ani",
+    "ct.nato": "Status NATO",
+    "ct.natoVal": "Partener certificat din 2018",
     "ct.footnote":
       "✓ Partener NATO certificat din 2018 · ✓ SAM.gov verificat · ✓ Scrisori de recomandare disponibile la cerere",
 
@@ -414,6 +443,7 @@ const dict = {
   en: {
     "brand.sub": "Defense Supply · NATO Partner",
     "nav.about": "About",
+    "nav.values": "Mission",
     "nav.products": "Products",
     "nav.clients": "Clients",
     "nav.timeline": "Timeline",
@@ -452,13 +482,36 @@ const dict = {
       "Active SAM.gov registration · CAGE 1HAZL · Eligible for direct contracts with the US DoD and NATO forces.",
     "about.c2.t": "NATO partner since 2018",
     "about.c2.b":
-      "7+ years of uninterrupted military contracts, 150+ transactions completed at active bases in Romania and the USA.",
+      "7+ years of uninterrupted military contracts, 500+ transactions completed at active bases in Romania and the USA.",
     "about.c3.t": "Top global manufacturers",
     "about.c3.b":
       "Direct partnerships with Philips, Schneider Electric, ABB and Schrack Technik — access to the most in-demand industrial equipment.",
     "about.c4.t": "International logistics",
     "about.c4.b":
       "Strategic partner DP World Romania. Verified door-to-door deliveries to Tyndall AFB (Florida) and Colorado Springs.",
+
+    "mv.kicker": "01b · Mission & Values",
+    "mv.title": "Our mission. The values we live by.",
+    "mv.lead":
+      "We build long-term relationships built on trust, deliver on schedule, and source exclusively from certified manufacturers.",
+    "mv.mTag": "Mission",
+    "mv.mission":
+      "To be the preferred supplier of industrial materials and solutions for allied armed forces and industrial customers — with fast delivery, FAR/DFARS compliance, and a level of support tailored to every contract.",
+    "mv.v1.t": "Trust",
+    "mv.v1.b": "Transparent practices, direct communication, contracts honoured.",
+    "mv.v2.t": "Reliability",
+    "mv.v2.b": "Consistent performance across 22+ years of activity, with zero supply interruptions even through COVID.",
+    "mv.v3.t": "Customer Focus",
+    "mv.v3.b": "We understand each contract's unique requirements and exceed expectations.",
+    "mv.v4.t": "Innovation",
+    "mv.v4.b": "We adopt new technologies and solutions to deliver more efficiently.",
+    "mv.v5.t": "Sustainability",
+    "mv.v5.b": "Environmentally-conscious practices, recyclable packaging, reduced logistics footprint.",
+    "mv.qaTag": "Quality Assurance",
+    "mv.qa1": "Direct sourcing from certified manufacturers (Philips, Schneider Electric, ABB, Schrack, Daikin, Atlas Copco)",
+    "mv.qa2": "Rigorous quality control procedures on every order",
+    "mv.qa3": "Certified products and services · FAR/DFARS compliance · DPAS DO-C9 priority",
+    "mv.qa4": "Verified logistics chain Romania → active US bases (Tyndall AFB, Colorado Springs)",
 
     "prod.kicker": "02 · Products & Services",
     "prod.title": "Full range for military, civil and industrial operations.",
@@ -603,6 +656,11 @@ const dict = {
     "ct.phone": "Phone",
     "ct.admin": "Administrator",
     "ct.addr": "Address",
+    "ct.naics": "NAICS Codes",
+    "ct.founded": "Founded",
+    "ct.years": "years",
+    "ct.nato": "NATO Status",
+    "ct.natoVal": "Certified partner since 2018",
     "ct.footnote":
       "✓ NATO-certified partner since 2018 · ✓ SAM.gov verified · ✓ Recommendation letters available on request",
 
